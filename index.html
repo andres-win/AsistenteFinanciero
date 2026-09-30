@@ -61,6 +61,8 @@ nav button{flex:1;border:0;background:none;padding:9px 0;font-size:11px;color:#6
 nav button.on{color:#2563eb;font-weight:bold}
 #toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#17202a;color:#fff;padding:11px 18px;border-radius:22px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90%;text-align:center}
 #toast.show{opacity:1}#toast.err{background:#dc2626}
+#guia{position:fixed;top:0;left:0;right:0;bottom:0;background:#f3f6fa;z-index:20;overflow:auto;display:none;padding-top:env(safe-area-inset-top,0px)}
+#guia p{margin-bottom:8px}
 @media(max-width:420px){.dia{min-height:74px}.dia select{font-size:8px}}
 </style>
 </head>
@@ -74,6 +76,7 @@ nav button.on{color:#2563eb;font-weight:bold}
 <label>Contraseña (mínimo 6 caracteres)</label><input id="lp" type="password" autocomplete="current-password">
 <button class="b" onclick="entrar()">Entrar</button>
 <button class="b sc" onclick="registrar()">Crear cuenta</button>
+<p class="l" style="margin-top:14px">🔒 Tus datos se guardan en tu cuenta y solo tú los ves desde la app.</p>
 <p style="margin-top:14px"><a href="#" onclick="olvide();return false" style="color:#2563eb;font-weight:bold">¿Olvidaste tu contraseña?</a></p>
 </div>
 </div>
@@ -90,6 +93,7 @@ nav button.on{color:#2563eb;font-weight:bold}
 <main class="w">
 
 <section id="t-inicio" class="tab">
+<div id="sal" class="c"></div>
 <div id="sem"></div>
 <div id="prox"></div>
 <div class="g2" style="margin-bottom:12px">
@@ -174,6 +178,7 @@ nav button.on{color:#2563eb;font-weight:bold}
 <div class="c"><h2>👤 Mi cuenta</h2><p class="l" id="mail"></p>
 <label>Cambiar contraseña</label><input id="cp" type="password" placeholder="Nueva contraseña (mínimo 6)" autocomplete="new-password">
 <button class="b sc" onclick="cambiarClave()">Cambiar contraseña</button>
+<button class="b sc" onclick="guiaAbrir()">📖 Ver guía de inicio</button>
 <button class="b sc" onclick="exportar()">⬇️ Descargar copia de mis datos</button>
 <button class="b og" onclick="salir()">🚪 Cerrar sesión</button>
 <button class="b rd" onclick="borrarCuenta()">🗑️ Borrar mi cuenta y mis datos</button>
@@ -191,6 +196,7 @@ nav button.on{color:#2563eb;font-weight:bold}
 <button data-t="mas" onclick="tab('mas')"><span>⚙️</span>Más</button>
 </nav>
 </div>
+<div id="guia"><div class="w"><div class="c" id="guiaC"></div></div></div>
 <div id="toast"></div>
 
 <script>
@@ -450,17 +456,60 @@ function exportar(){
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="mis-finanzas-"+mesKey()+".json";
   document.body.appendChild(a);a.click();a.remove();toast("⬇️ Copia descargada");
 }
+const FR=["Antes de comprar, revisa cuánto te queda libre.", "Cada sol anotado es un paso hacia tu tranquilidad.", "Tu billetera también necesita días de descanso.", "Revisa tus pagos pendientes antes de gastar.", "Un buen mes se arma con pequeñas decisiones.", "Lo que ahorras hoy lo vas a agradecer a fin de mes.", "Anotar hasta el gasto más pequeño te da control.", "Tu yo del fin de mes te lo va a agradecer.", "Paga primero lo importante, después lo antojable.", "Hoy es buen día para revisar tus números.", "Los gastos hormiga también hacen ruido.", "Ahorrar un poco cada semana suma más de lo que parece.", "Si dudas de una compra, espera un día.", "Tu dinero rinde más cuando tiene un plan.", "Un antojo no es una emergencia.", "Hacer cuentas no duele, sorprender a la billetera sí.", "Separa tus pagos del mes apenas cobres.", "Pequeños avances, grandes resultados.", "Saber cuánto tienes es el primer paso para tener más.", "No compares tus finanzas con las de nadie.", "Tu presupuesto no te limita, te da libertad.", "Gastar con calma sale más barato.", "Cobrar es fácil, que alcance es el arte.", "Revisa tus suscripciones: algunas viven sin que lo sepas.", "Un día a la vez también funciona con el dinero.", "Lo barato sale caro si no lo necesitabas.", "Hoy puedes mejorar un hábito de dinero.", "Tu tarjeta no es dinero extra, es dinero prestado.", "Si te sobra algo este mes, guárdalo antes de que se escape.", "Las metas pequeñas se cumplen antes que las grandes.", "Que el mes no te sorprenda: mira tu calendario de pagos.", "Tu futuro se alegra cada vez que ahorras.", "El dinero no compra felicidad, pero ayuda a pagar el internet.", "Pagar a tiempo te ahorra dolores de cabeza.", "Empieza por lo que sí puedes controlar.", "Un sol ahorrado es un sol que trabaja para ti.", "Tu cuenta agradece las compras pensadas.", "Planear hoy es tranquilidad mañana.", "No hace falta ganar más para ordenarte mejor.", "Comprar con hambre o con antojo nunca sale bien.", "Revisa tu saldo, no muerde.", "Tener un colchón de ahorro es dormir mejor.", "Cada mes es una nueva oportunidad de hacerlo mejor.", "Gastar es fácil, decidir en qué es lo difícil.", "Lo que no se anota se evapora.", "Paga tus deudas en orden: primero las más caras.", "Tu disciplina de hoy es tu libertad de mañana.", "Las ofertas solo sirven si ya ibas a comprarlo.", "Hoy tu meta es simple: anotar tus gastos.", "Un presupuesto claro quita el estrés.", "Que el fin de mes te encuentre con calma.", "No dejes para mañana el pago que vence hoy.", "Un pequeño ahorro diario se vuelve grande.", "Mirar tus cuentas es un acto de cariño contigo.", "Tu billetera no tiene fondo, pero tú sí tienes plan.", "Gasta en lo que te importa y recorta lo que no.", "Buen día para pagar algo pendiente.", "Elegir bien hoy te libera mañana.", "Ordenar tu dinero también ordena tu cabeza.", "Hazlo simple: ingresos, pagos, y lo que queda."];
+const sinDatos=()=>!datos.saldo&&!datos.reservado&&!datos.limiteTarjeta&&!datos.movimientos.length&&!datos.compromisos.length&&!datos.comprasTarjeta.length;
+function frase(){
+  const t=new Date();let a=t.getFullYear()*12+t.getMonth();
+  const r=()=>{a|=0;a=a+0x6D2B79F5|0;let x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296};
+  const f=FR.slice();for(let i=f.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[f[i],f[j]]=[f[j],f[i]]}
+  return f[t.getDate()-1];
+}
+const GP=6;let gi=0;
+function guiaAbrir(){gi=0;$("guia").style.display="block";guiaPinta()}
+function guiaPinta(){
+  const inp=(id,v,ph)=>"<input id='"+id+"' type='number' inputmode='decimal' min='0' step='0.01' value='"+(v||"")+"' placeholder='"+(ph||"0.00")+"'>";
+  const T=[
+  ["👋 ¡Bienvenido!","<p>Vamos a dejar tu plata en orden, paso a paso. Te toma 2 minutos y puedes omitir lo que no necesites.</p>"],
+  ["💰 Tu dinero","<label>¿Cuánto dinero tienes ahora? (cuenta + efectivo)</label>"+inp("gS",datos.saldo)],
+  ["💵 Tu sueldo","<label>¿Cuánto cobras este mes?</label>"+inp("gU",datos.laboral.sueldo)],
+  ["💳 Tu tarjeta","<p class='l'>Si no tienes tarjeta de crédito, omite este paso.</p><label>Límite de la tarjeta</label>"+inp("gL",datos.limiteTarjeta)+"<label>¿Cuánto debes hoy?</label>"+inp("gD",datos.deudaTarjeta)],
+  ["📆 Tus pagos","<p class='l'>Agrega tus pagos fijos, como alquiler, luz o un crédito. Puedes agregar varios.</p><label>Nombre</label><input id='gN' type='text' placeholder='Ej: Alquiler'><label>Monto</label>"+inp("gM","")+"<label>Día de vencimiento (31 = fin de mes)</label><input id='gDi' type='number' inputmode='numeric' min='1' max='31'><button class='b sc' onclick='guiaPago()'>➕ Agregar este pago</button><p class='l' id='gC' style='margin-top:8px'></p>"],
+  ["🎉 ¡Listo!","<p>Ya tienes tu dinero ordenado. Desde hoy sabrás cuánto puedes gastar.</p><p class='l' style='margin-top:12px'><b>Para abrirla con un toque:</b><br>🍎 iPhone (Safari): Compartir → Agregar a pantalla de inicio.<br>🤖 Android (Chrome): menú ⋮ → Agregar a pantalla de inicio.</p>"]][gi];
+  $("guiaC").innerHTML="<small class='l'>Paso "+(gi+1)+" de "+GP+"</small><h2>"+T[0]+"</h2>"+T[1]+
+  "<button class='b' onclick='guiaSig()'>"+(gi===GP-1?"Empezar a usar la app":"Siguiente")+"</button>"+(gi>0&&gi<GP-1?"<button class='b sc' onclick='guiaOmitir()'>Omitir</button>":"");
+}
+function guiaPago(){
+  const n=$("gN").value.trim(),m=num("gM"),d=num("gDi");
+  if(!n)return toast("Escribe el nombre del pago","err"),false;
+  if(m<=0)return toast("Escribe un monto válido","err"),false;
+  if(d<1||d>31)return toast("El día debe estar entre 1 y 31","err"),false;
+  datos.compromisos.push({id:Date.now(),nombre:n,monto:red(m),dia:d,repite:"mes",cuotas:1,cuotaActual:1,descuenta:true,pagadoMes:"",terminado:false});
+  $("gN").value="";$("gM").value="";$("gDi").value="";
+  $("gC").textContent="✅ Pagos agregados: "+datos.compromisos.length;guardar();return true;
+}
+function guiaSig(){
+  const g=id=>Number($(id).value)||0;
+  if(gi===1)datos.saldo=red(g("gS"));
+  else if(gi===2){datos.laboral.sueldo=red(g("gU"));datos.laboral.mes=datos.laboral.mes||mesKey()}
+  else if(gi===3){const l=g("gL"),d=g("gD");if(d>l)return toast("La deuda no puede superar el límite","err");datos.limiteTarjeta=red(l);datos.deudaTarjeta=red(d)}
+  else if(gi===4&&($("gN").value.trim()||g("gM")||g("gDi"))&&!guiaPago())return;
+  guiaOmitir();
+}
+function guiaOmitir(){if(gi<GP-1){gi++;guiaPinta()}else guiaFin()}
+function guiaFin(){datos.guiaVista=true;guardar();$("guia").style.display="none";ajustesForm();initLab();render();tab("inicio")}
 function borrarHis(){if(!datos.historial.length)return toast("No hay meses guardados");if(!confirm("¿Borrar los meses guardados? Tu dinero no se toca."))return;datos.historial=[];guardar();render()}
 function mesTxt(m){const p=String(m||"").split("-");return p.length<2?"":new Date(+p[0],+p[1]-1,1).toLocaleDateString("es-PE",{month:"long",year:"numeric"})}
 
 /* ===== PINTAR PANTALLAS ===== */
 function render(){
-  const m=mesKey(),P=pend();
+  const m=mesKey(),P=pend(),hh=new Date().getHours();
+  $("sal").innerHTML="<b>"+(hh<12?"Buenos días":hh<19?"Buenas tardes":"Buenas noches")+" 👋</b><div class='l' style='margin:6px 0 0'>"+esc(frase())+"</div>";
   st("vSaldo",dinero(datos.saldo));st("vRes",dinero(datos.reservado));st("vDeu",dinero(datos.deudaTarjeta));
   st("vDisp",dinero(red(datos.saldo-P.filter(x=>x.desc).reduce((s,x)=>s+x.m,0))));
   const tt0=new Date(),hoy=tt0.getDate(),dr=new Date(tt0.getFullYear(),tt0.getMonth()+1,0).getDate()-hoy+1,dsp=red(datos.saldo-P.filter(x=>x.desc).reduce((s,x)=>s+x.m,0)),rt=datos.saldo>0?dsp/datos.saldo:0;
   let sv,sm;
-  if(dsp<=0){sv="#fef2f2;border:2px solid #fecaca;color:#991b1b";sm="🔴 Ya no es recomendable gastar. Tu dinero libre es "+dinero(Math.max(0,dsp))+" y aún te faltan pagos."}
+  if(!datos.saldo&&!datos.reservado&&!datos.limiteTarjeta&&!datos.movimientos.length&&!datos.compromisos.length&&!datos.comprasTarjeta.length){sv="#eff6ff;border:2px solid #bfdbfe;color:#1e3a8a";sm="👋 ¡Bienvenido! Para empezar, ve a Más → Mis datos y escribe cuánto dinero tienes. Después agrega tus pagos en la pestaña Pagos."}
+  else if(dsp<=0){sv="#fef2f2;border:2px solid #fecaca;color:#991b1b";sm="🔴 Ya no es recomendable gastar. Tu dinero libre es "+dinero(Math.max(0,dsp))+" y aún te faltan pagos."}
   else if(rt<.25){sv="#fffbeb;border:2px solid #fde68a;color:#92400e";sm="🟡 Cuidado: te quedan "+dinero(dsp)+" libres para "+dr+" día(s). Puedes gastar hasta "+dinero(dsp/dr)+" por día."}
   else{sv="#f0fdf4;border:2px solid #bbf7d0;color:#166534";sm="🟢 Vas bien. Tienes "+dinero(dsp)+" libres: hasta "+dinero(dsp/dr)+" por día hasta fin de mes."}
   $("sem").innerHTML="<div class='px' style='background:"+sv+"'>"+sm+"<br><small>No cuenta dinero que aún no recibes.</small></div>";
@@ -502,7 +551,7 @@ async function iniciarApp(u){
   if(error)toast("No se pudo leer la nube","err");
   let n=(data&&data.datos&&Object.keys(data.datos).length)?data.datos:null,primera=false;
   if(!n&&!error){try{const v=localStorage.getItem("asistenteFinanciero");if(v)n=JSON.parse(v)}catch(e){}primera=true}
-  cargar(n);ajustesForm();initLab();render();mostrar("ap");tab("inicio");
+  cargar(n);ajustesForm();initLab();render();mostrar("ap");tab("inicio");if(!datos.guiaVista&&sinDatos())guiaAbrir();
   if(primera)guardar();else st("est","☁️ Guardado");
 }
 async function entrar(){
