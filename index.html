@@ -5,4751 +5,924 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#2563eb">
 <title>Asistente Financiero</title>
+<!--
+SQL PARA SUPABASE (SQL Editor, ejecutar una sola vez):
 
+create table public.finanzas (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  datos jsonb not null default '{}',
+  updated_at timestamptz default now()
+);
+alter table public.finanzas enable row level security;
+create policy "Cada usuario ve y edita solo lo suyo" on public.finanzas for all
+using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-}
-
-body{
-    font-family:Arial,sans-serif;
-    background:#f3f6fa;
-    color:#17202a;
-}
-
-.app{
-    max-width:1100px;
-    margin:auto;
-    padding:18px;
-}
-
-header{
-    background:linear-gradient(135deg,#2563eb,#1d4ed8);
-    color:white;
-    padding:25px;
-    border-radius:22px;
-    margin-bottom:18px;
-}
-
-header h1{
-    font-size:28px;
-    margin-bottom:7px;
-}
-
-header p{
-    opacity:.9;
-}
-
-.cards{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:12px;
-    margin-bottom:18px;
-}
-
-.card{
-    background:white;
-    padding:18px;
-    border-radius:17px;
-    box-shadow:0 2px 8px rgba(0,0,0,.06);
-}
-
-.label{
-    color:#68727d;
-    font-size:13px;
-    margin-bottom:7px;
-}
-
-.value{
-    font-size:23px;
-    font-weight:bold;
-}
-
-.blue{color:#2563eb}
-.green{color:#16a34a}
-.red{color:#dc2626}
-.orange{color:#d97706}
-.purple{color:#7c3aed}
-
-.section{
-    background:white;
-    padding:20px;
-    border-radius:17px;
-    margin-bottom:18px;
-    box-shadow:0 2px 8px rgba(0,0,0,.04);
-}
-
-.section h2{
-    margin-bottom:14px;
-}
-
-.info{
-    background:#eff6ff;
-    border:1px solid #bfdbfe;
-    color:#1e3a8a;
-}
-
-.warning{
-    background:#fff7ed;
-    border:1px solid #fed7aa;
-    color:#9a3412;
-}
-
-.success{
-    background:#f0fdf4;
-    border:1px solid #bbf7d0;
-    color:#166534;
-}
-
-.form-grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
-    margin-bottom:12px;
-}
-
-.form-grid-3{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:12px;
-    margin-bottom:12px;
-}
-
-label{
-    display:block;
-    font-size:13px;
-    color:#4b5563;
-    margin-bottom:6px;
-}
-
-input,select{
-    width:100%;
-    padding:12px;
-    border:1px solid #d1d5db;
-    border-radius:10px;
-    font-size:15px;
-    background:white;
-}
-
-.button{
-    background:#2563eb;
-    color:white;
-    border:0;
-    padding:14px 18px;
-    border-radius:12px;
-    cursor:pointer;
-    font-weight:bold;
-    font-size:15px;
-}
-
-.button:hover{
-    opacity:.9;
-}
-
-.green-button{background:#16a34a}
-.orange-button{background:#d97706}
-.red-button{background:#dc2626}
-
-.secondary{
-    background:#e5edff;
-    color:#2563eb;
-}
-
-.actions{
-    display:flex;
-    gap:10px;
-    margin-top:10px;
-    flex-wrap:wrap;
-}
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:12px;
-}
-
-.resumen-final{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:12px;
-}
-
-.resumen-box{
-    background:#f8fafc;
-    padding:15px;
-    border-radius:12px;
-}
-
-.total-final{
-    background:#eff6ff;
-    border:2px solid #2563eb;
-    padding:20px;
-    border-radius:15px;
-    margin-top:15px;
-}
-
-.total-final .value{
-    font-size:30px;
-}
-
-.vacio{
-    color:#68727d;
-    padding:15px 0;
-}
-
-.movimiento{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:14px 0;
-    border-bottom:1px solid #eee;
-    gap:10px;
-}
-
-.movimiento:last-child{
-    border-bottom:none;
-}
-
-.fecha{
-    color:#68727d;
-    font-size:12px;
-    margin-top:4px;
-}
-
-.compromiso{
-    background:#fffaf5;
-    border:1px solid #fed7aa;
-    border-radius:14px;
-    padding:16px;
-    margin-bottom:12px;
-}
-
-.compromiso.pagado{
-    background:#f0fdf4;
-    border-color:#bbf7d0;
-}
-
-.compromiso-cabecera{
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-    align-items:flex-start;
-}
-
-.compromiso-titulo{
-    font-size:17px;
-    font-weight:bold;
-}
-
-.compromiso-monto{
-    font-size:20px;
-    font-weight:bold;
-}
-
-.badge{
-    display:inline-block;
-    padding:5px 9px;
-    border-radius:20px;
-    font-size:11px;
-    font-weight:bold;
-    margin-top:7px;
-}
-
-.badge-pendiente{
-    background:#ffedd5;
-    color:#9a3412;
-}
-
-.badge-pagado{
-    background:#dcfce7;
-    color:#166534;
-}
-
-.badge-tarjeta{
-    background:#ede9fe;
-    color:#6d28d9;
-}
-
-.compromiso-detalles{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:10px;
-    margin-top:14px;
-}
-
-.detalle{
-    background:white;
-    padding:10px;
-    border-radius:10px;
-    border:1px solid #eee;
-}
-
-.detalle small{
-    display:block;
-    color:#68727d;
-    margin-bottom:4px;
-}
-
-.proximo{
-    background:#fef2f2;
-    border:2px solid #fecaca;
-    color:#991b1b;
-    padding:18px;
-    border-radius:15px;
-    margin-bottom:15px;
-}
-
-.proximo strong{
-    font-size:18px;
-}
-
-.tarjeta-resumen{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:12px;
-}
-
-.calendario{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    gap:8px;
-    margin-top:15px;
-}
-
-.nombre-dia{
-    background:#eef2ff;
-    color:#374151;
-    padding:10px 5px;
-    text-align:center;
-    font-weight:bold;
-    border-radius:8px;
-    font-size:13px;
-}
-
-.dia{
-    border:1px solid #e5e7eb;
-    border-radius:12px;
-    padding:8px;
-    min-height:135px;
-    background:#fff;
-}
-
-.dia-numero{
-    font-weight:bold;
-    margin-bottom:7px;
-    font-size:15px;
-}
-
-.dia select{
-    font-size:12px;
-    padding:8px;
-}
-
-.dia-resultado{
-    font-size:12px;
-    font-weight:bold;
-    margin-top:7px;
-}
-
-.dia-vacio{
-    min-height:135px;
-}
-
-.fin-de-semana{
-    background:#fafafa;
-}
-
-.estado-normal{
-    border-color:#86efac;
-    background:#f0fdf4;
-}
-
-.estado-falta{
-    border-color:#fca5a5;
-    background:#fef2f2;
-}
-
-.estado-medio{
-    border-color:#fde68a;
-    background:#fffbeb;
-}
-
-.estado-doble{
-    border-color:#c4b5fd;
-    background:#f5f3ff;
-}
-
-.estado-triple{
-    border-color:#fdba74;
-    background:#fff7ed;
-}
-
-.estado-descanso{
-    background:#f9fafb;
-}
-
-.estado-vacaciones{
-    border-color:#93c5fd;
-    background:#eff6ff;
-}
-
-.estado-feriado{
-    border-color:#f9a8d4;
-    background:#fdf2f8;
-}
-
-.historial-item{
-    border:1px solid #e5e7eb;
-    border-radius:12px;
-    padding:15px;
-    margin-bottom:10px;
-    background:#fafafa;
-}
-
-.historial-total{
-    font-size:20px;
-    font-weight:bold;
-    color:#2563eb;
-    margin-top:5px;
-}
-
-@media(max-width:800px){
-    .cards{
-        grid-template-columns:1fr 1fr;
-    }
-
-    .form-grid-3{
-        grid-template-columns:1fr;
-    }
-
-    .tarjeta-resumen{
-        grid-template-columns:1fr 1fr;
-    }
-
-    .compromiso-detalles{
-        grid-template-columns:1fr 1fr;
-    }
-}
-
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f3f6fa;color:#17202a}
+.app{max-width:1100px;margin:auto;padding:18px}
+header{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;padding:25px;border-radius:22px;margin-bottom:18px}
+header h1{font-size:28px;margin-bottom:7px}
+header p{opacity:.9}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.card{background:white;padding:18px;border-radius:17px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.label{color:#68727d;font-size:13px;margin-bottom:7px}
+.value{font-size:23px;font-weight:bold}
+.blue{color:#2563eb}.green{color:#16a34a}.red{color:#dc2626}.orange{color:#d97706}.purple{color:#7c3aed}
+.section{background:white;padding:20px;border-radius:17px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.section h2{margin-bottom:14px}
+.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a}
+.warning{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}
+.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+label{display:block;font-size:13px;color:#4b5563;margin-bottom:6px}
+input,select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:white}
+.button{background:#2563eb;color:white;border:0;padding:14px 18px;border-radius:12px;cursor:pointer;font-weight:bold;font-size:15px}
+.button:hover{opacity:.9}
+.green-button{background:#16a34a}.orange-button{background:#d97706}.red-button{background:#dc2626}
+.secondary{background:#e5edff;color:#2563eb}
+.actions{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.grid,.resumen-final{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.resumen-box{background:#f8fafc;padding:15px;border-radius:12px}
+.total-final{background:#eff6ff;border:2px solid #2563eb;padding:20px;border-radius:15px;margin-top:15px}
+.total-final .value{font-size:30px}
+.vacio{color:#68727d;padding:15px 0}
+.movimiento{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #eee;gap:10px}
+.movimiento:last-child{border-bottom:none}
+.fecha{color:#68727d;font-size:12px;margin-top:4px}
+.compromiso{background:#fffaf5;border:1px solid #fed7aa;border-radius:14px;padding:16px;margin-bottom:12px}
+.compromiso.pagado{background:#f0fdf4;border-color:#bbf7d0}
+.compromiso-cabecera{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.compromiso-titulo{font-size:17px;font-weight:bold}
+.compromiso-monto{font-size:20px;font-weight:bold}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:bold;margin-top:7px}
+.badge-pendiente{background:#ffedd5;color:#9a3412}
+.badge-pagado{background:#dcfce7;color:#166534}
+.badge-tarjeta{background:#ede9fe;color:#6d28d9}
+.compromiso-detalles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.detalle{background:white;padding:10px;border-radius:10px;border:1px solid #eee}
+.detalle small{display:block;color:#68727d;margin-bottom:4px}
+.proximo{background:#fef2f2;border:2px solid #fecaca;color:#991b1b;padding:18px;border-radius:15px;margin-bottom:15px}
+.proximo strong{font-size:18px}
+.tarjeta-resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.calendario{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:15px}
+.nombre-dia{background:#eef2ff;color:#374151;padding:10px 5px;text-align:center;font-weight:bold;border-radius:8px;font-size:13px}
+.dia{border:1px solid #e5e7eb;border-radius:12px;padding:8px;min-height:135px;background:#fff}
+.dia-numero{font-weight:bold;margin-bottom:7px;font-size:15px}
+.dia select{font-size:12px;padding:8px}
+.dia-resultado{font-size:12px;font-weight:bold;margin-top:7px}
+.dia-vacio{min-height:135px}
+.fin-de-semana{background:#fafafa}
+.estado-normal{border-color:#86efac;background:#f0fdf4}
+.estado-falta{border-color:#fca5a5;background:#fef2f2}
+.estado-medio{border-color:#fde68a;background:#fffbeb}
+.estado-doble{border-color:#c4b5fd;background:#f5f3ff}
+.estado-triple{border-color:#fdba74;background:#fff7ed}
+.estado-descanso{background:#f9fafb}
+.estado-vacaciones{border-color:#93c5fd;background:#eff6ff}
+.estado-feriado{border-color:#f9a8d4;background:#fdf2f8}
+.historial-item{border:1px solid #e5e7eb;border-radius:12px;padding:15px;margin-bottom:10px;background:#fafafa}
+.historial-total{font-size:20px;font-weight:bold;color:#2563eb;margin-top:5px}
+@media(max-width:800px){.cards,.tarjeta-resumen,.compromiso-detalles{grid-template-columns:1fr 1fr}.form-grid-3{grid-template-columns:1fr}}
 @media(max-width:500px){
-    .app{
-        padding:10px;
-    }
-
-    header{
-        padding:20px;
-    }
-
-    header h1{
-        font-size:23px;
-    }
-
-    .cards{
-        gap:8px;
-    }
-
-    .card{
-        padding:14px;
-    }
-
-    .value{
-        font-size:18px;
-    }
-
-    .form-grid,
-    .grid,
-    .resumen-final{
-        grid-template-columns:1fr;
-    }
-
-    .tarjeta-resumen{
-        grid-template-columns:1fr;
-    }
-
-    .compromiso-cabecera{
-        flex-direction:column;
-    }
-
-    .compromiso-detalles{
-        grid-template-columns:1fr;
-    }
-
-    .calendario{
-        gap:3px;
-    }
-
-    .nombre-dia{
-        font-size:9px;
-        padding:7px 2px;
-    }
-
-    .dia{
-        min-height:105px;
-        padding:4px;
-        border-radius:7px;
-    }
-
-    .dia-numero{
-        font-size:12px;
-    }
-
-    .dia select{
-        font-size:9px;
-        padding:5px 2px;
-    }
-
-    .dia-resultado{
-        font-size:9px;
-    }
-
-    .total-final .value{
-        font-size:25px;
-    }
-}
+.app{padding:10px}header{padding:20px}header h1{font-size:23px}
+.cards{gap:8px}.card{padding:14px}.value{font-size:18px}
+.form-grid,.grid,.resumen-final,.tarjeta-resumen,.compromiso-detalles{grid-template-columns:1fr}
+.compromiso-cabecera{flex-direction:column}
+.calendario{gap:3px}.nombre-dia{font-size:9px;padding:7px 2px}
+.dia{min-height:105px;padding:4px;border-radius:7px}.dia-numero{font-size:12px}
+.dia select{font-size:9px;padding:5px 2px}.dia-resultado{font-size:9px}
+.total-final .value{font-size:25px}}
 </style>
 </head>
-
 <body>
 
+<!-- LOGIN -->
+<div id="pantallaLogin" class="app" style="display:none">
+<header><h1>💰 Asistente Financiero</h1><p>Inicia sesión para ver tus datos en cualquier dispositivo.</p></header>
+<div class="section">
+<h2>🔐 Iniciar sesión</h2>
+<label>Correo</label><input id="loginEmail" type="email" autocomplete="email">
+<br><br>
+<label>Contraseña (mínimo 6 caracteres)</label><input id="loginPass" type="password" autocomplete="current-password">
+<div class="actions">
+<button class="button" onclick="iniciarSesion()">Entrar</button>
+<button class="button secondary" onclick="registrarse()">Crear cuenta</button>
+</div>
+</div>
+</div>
+
+<div id="appPrincipal" style="display:none">
 <div class="app">
 
 <header>
-    <h1>💰 Asistente Financiero</h1>
-    <p>Tu dinero, tus compromisos, tu tarjeta y tus ingresos.</p>
+<h1>💰 Asistente Financiero</h1>
+<p>Tu dinero, tus compromisos, tu tarjeta y tus ingresos.</p>
+<button class="button red-button" style="margin-top:12px" onclick="cerrarSesion()">🚪 Cerrar sesión</button>
 </header>
 
-
-<!-- CONFIGURACIÓN -->
-
 <div class="section warning">
-
 <h2>⚙️ Mis datos reales</h2>
-
-<p style="margin-bottom:15px">
-Aquí colocas tus datos actuales. Tu dinero en cuenta y tu dinero reservado son tuyos.
-Los compromisos futuros se muestran aparte y no se descuentan automáticamente.
-</p>
-
+<p style="margin-bottom:15px">Aquí colocas tus datos actuales. Tu dinero en cuenta y tu dinero reservado son tuyos. Los compromisos futuros se muestran aparte y no se descuentan automáticamente.</p>
 <div class="form-grid">
-
-<div>
-<label>💰 Dinero actual en cuenta</label>
-<input id="configSaldo" type="number" min="0" step="0.01">
+<div><label>💰 Dinero actual en cuenta</label><input id="configSaldo" type="number" min="0" step="0.01"></div>
+<div><label>💵 Sueldo mensual</label><input id="configSueldo" type="number" min="0" step="0.01"></div>
+<div><label>💳 Límite de tarjeta</label><input id="configLimite" type="number" min="0" step="0.01"></div>
+<div><label>💳 Deuda actual de tarjeta</label><input id="configDeuda" type="number" min="0" step="0.01"></div>
+<div><label>🎯 Dinero reservado</label><input id="configReservado" type="number" min="0" step="0.01"></div>
 </div>
-
-<div>
-<label>💵 Sueldo mensual</label>
-<input id="configSueldo" type="number" min="0" step="0.01">
+<div class="actions"><button class="button" onclick="guardarConfiguracion()">💾 Guardar mis datos</button></div>
 </div>
-
-<div>
-<label>💳 Límite de tarjeta</label>
-<input id="configLimite" type="number" min="0" step="0.01">
-</div>
-
-<div>
-<label>💳 Deuda actual de tarjeta</label>
-<input id="configDeuda" type="number" min="0" step="0.01">
-</div>
-
-<div>
-<label>🎯 Dinero reservado</label>
-<input id="configReservado" type="number" min="0" step="0.01">
-</div>
-
-</div>
-
-<div class="actions">
-<button class="button" onclick="guardarConfiguracion()">
-💾 Guardar mis datos
-</button>
-</div>
-
-</div>
-
-
-<!-- RESUMEN -->
 
 <div class="cards">
-
-<div class="card">
-<div class="label">💰 Dinero en cuenta</div>
-<div class="value blue" id="saldo">S/ 0.00</div>
+<div class="card"><div class="label">💰 Dinero en cuenta</div><div class="value blue" id="saldo">S/ 0.00</div></div>
+<div class="card"><div class="label">🎯 Dinero reservado</div><div class="value orange" id="reservado">S/ 0.00</div></div>
+<div class="card"><div class="label">💰 Dinero propio</div><div class="value green" id="dineroPropio">S/ 0.00</div></div>
+<div class="card"><div class="label">💳 Deuda tarjeta</div><div class="value red" id="tarjeta">S/ 0.00</div></div>
 </div>
-
-<div class="card">
-<div class="label">🎯 Dinero reservado</div>
-<div class="value orange" id="reservado">S/ 0.00</div>
-</div>
-
-<div class="card">
-<div class="label">💰 Dinero propio</div>
-<div class="value green" id="dineroPropio">S/ 0.00</div>
-</div>
-
-<div class="card">
-<div class="label">💳 Deuda tarjeta</div>
-<div class="value red" id="tarjeta">S/ 0.00</div>
-</div>
-
-</div>
-
-
-<!-- PROXIMO VENCIMIENTO -->
 
 <div id="proximoVencimiento"></div>
 
-
-<!-- MI DINERO -->
-
 <div class="section success">
-
 <h2>💰 Mi dinero</h2>
-
 <div class="grid">
-
-<div>
-<div class="label">Dinero en cuenta</div>
-<div class="value blue" id="dineroCuentaResumen">S/ 0.00</div>
+<div><div class="label">Dinero en cuenta</div><div class="value blue" id="dineroCuentaResumen">S/ 0.00</div></div>
+<div><div class="label">Dinero reservado</div><div class="value orange" id="dineroReservadoResumen">S/ 0.00</div></div>
+<div><div class="label">Total de dinero propio</div><div class="value green" id="dineroPropioResumen">S/ 0.00</div></div>
 </div>
-
-<div>
-<div class="label">Dinero reservado</div>
-<div class="value orange" id="dineroReservadoResumen">S/ 0.00</div>
+<p style="margin-top:12px">El dinero reservado sigue siendo tuyo y no se considera un gasto.</p>
 </div>
-
-<div>
-<div class="label">Total de dinero propio</div>
-<div class="value green" id="dineroPropioResumen">S/ 0.00</div>
-</div>
-
-</div>
-
-<p style="margin-top:12px">
-El dinero reservado sigue siendo tuyo y no se considera un gasto.
-</p>
-
-</div>
-
-
-<!-- COMPROMISOS -->
 
 <div class="section warning">
-
 <h2>📆 Mis pagos pendientes</h2>
-
-<p style="margin-bottom:15px">
-Aquí aparecen los pagos que tendrás que realizar. Cada uno conserva su propia fecha.
-</p>
-
+<p style="margin-bottom:15px">Aquí aparecen los pagos que tendrás que realizar. Cada uno conserva su propia fecha.</p>
 <div id="listaCompromisos"></div>
-
 </div>
-
-
-<!-- AGREGAR COMPROMISO -->
 
 <div class="section">
-
 <h2>➕ Agregar pago pendiente</h2>
-
 <div class="form-grid">
-
-<div>
-<label>Nombre del pago</label>
-<input id="compNombre" type="text" placeholder="Ej: Crédito Banco">
-</div>
-
-<div>
-<label>Tipo de pago</label>
-
+<div><label>Nombre del pago</label><input id="compNombre" type="text" placeholder="Ej: Crédito Banco"></div>
+<div><label>Tipo de pago</label>
 <select id="compTipo">
-
 <option value="credito">🏦 Crédito Banco</option>
 <option value="tarjeta">💳 Tarjeta de crédito</option>
 <option value="servicio">💡 Servicio</option>
 <option value="alquiler">🏠 Alquiler</option>
 <option value="prestamo">💰 Préstamo</option>
 <option value="otro">📄 Otro</option>
-
-</select>
-</div>
-
-<div>
-<label>Monto</label>
-<input id="compMonto" type="number" min="0" step="0.01">
-</div>
-
-<div>
-<label>Día de vencimiento</label>
-<input id="compDia" type="number" min="1" max="31" placeholder="Ej: 3 o 20">
-</div>
-
-<div>
-<label>¿Se paga con?</label>
-
+</select></div>
+<div><label>Monto</label><input id="compMonto" type="number" min="0" step="0.01"></div>
+<div><label>Día de vencimiento</label><input id="compDia" type="number" min="1" max="31" placeholder="Ej: 3 o 20"></div>
+<div><label>¿Se paga con?</label>
 <select id="compFuente">
-
 <option value="sueldo">💵 Sueldo</option>
 <option value="cuenta">💰 Dinero en cuenta</option>
 <option value="tarjeta">💳 Tarjeta</option>
 <option value="otro">📄 Otro</option>
-
-</select>
-
+</select></div>
+<div><label>Número de cuotas</label><input id="compCuotas" type="number" min="1" value="1"></div>
 </div>
-
-<div>
-<label>Número de cuotas</label>
-<input id="compCuotas" type="number" min="1" value="1">
-</div>
-
-</div>
-
 <div class="form-grid">
-
-<div>
-<label>Cuota actual</label>
-<input id="compCuotaActual" type="number" min="1" value="1">
+<div><label>Cuota actual</label><input id="compCuotaActual" type="number" min="1" value="1"></div>
+<div><label>Fecha desde la que aplica</label><input id="compFecha" type="date"></div>
 </div>
-
-<div>
-<label>Fecha desde la que aplica</label>
-<input id="compFecha" type="date">
+<button class="button orange-button" onclick="agregarCompromiso()">➕ Guardar pago pendiente</button>
 </div>
-
-</div>
-
-<button class="button orange-button" onclick="agregarCompromiso()">
-➕ Guardar pago pendiente
-</button>
-
-</div>
-
-
-<!-- TARJETA -->
 
 <div class="section">
-
 <h2>💳 Tarjeta de crédito</h2>
-
 <div class="tarjeta-resumen">
-
-<div class="resumen-box">
-<div class="label">Límite</div>
-<div class="value" id="limiteTarjeta">S/ 0.00</div>
+<div class="resumen-box"><div class="label">Límite</div><div class="value" id="limiteTarjeta">S/ 0.00</div></div>
+<div class="resumen-box"><div class="label">Deuda actual</div><div class="value red" id="deudaTarjeta">S/ 0.00</div></div>
+<div class="resumen-box"><div class="label">Crédito disponible</div><div class="value green" id="creditoDisponible">S/ 0.00</div></div>
 </div>
-
-<div class="resumen-box">
-<div class="label">Deuda actual</div>
-<div class="value red" id="deudaTarjeta">S/ 0.00</div>
-</div>
-
-<div class="resumen-box">
-<div class="label">Crédito disponible</div>
-<div class="value green" id="creditoDisponible">S/ 0.00</div>
-</div>
-
-</div>
-
 <div class="section info" style="margin-top:15px;margin-bottom:0">
-
-<p>
-💳 <strong>La tarjeta puede tener una fecha de vencimiento diferente.</strong>
-</p>
-
-<p style="margin-top:8px">
-Por defecto se puede usar el día 20, pero cada compromiso de tarjeta puede tener su propia fecha.
-</p>
-
-<p style="margin-top:8px">
-Las compras con tarjeta aumentan la deuda. El límite de crédito no es dinero disponible en tu cuenta.
-</p>
-
+<p>💳 <strong>La tarjeta puede tener una fecha de vencimiento diferente.</strong></p>
+<p style="margin-top:8px">Por defecto se puede usar el día 20, pero cada compromiso de tarjeta puede tener su propia fecha.</p>
+<p style="margin-top:8px">Las compras con tarjeta aumentan la deuda. El límite de crédito no es dinero disponible en tu cuenta.</p>
 </div>
-
 </div>
-
-
-<!-- COMPRA TARJETA -->
 
 <div class="section">
-
 <h2>💳 Registrar compra con tarjeta</h2>
-
 <div class="form-grid">
-
-<div>
-<label>Nombre de la compra</label>
-<input id="tarjetaCompraNombre" type="text" placeholder="Ej: Televisor">
+<div><label>Nombre de la compra</label><input id="tarjetaCompraNombre" type="text" placeholder="Ej: Televisor"></div>
+<div><label>Monto total de compra</label><input id="tarjetaCompraMonto" type="number" min="0" step="0.01"></div>
+<div><label>Número de cuotas</label><input id="tarjetaCompraCuotas" type="number" min="1" value="1"></div>
+<div><label>Cuota actual</label><input id="tarjetaCompraCuotaActual" type="number" min="1" value="1"></div>
+<div><label>Día de vencimiento</label><input id="tarjetaCompraDia" type="number" min="1" max="31" value="20"></div>
 </div>
-
-<div>
-<label>Monto total de compra</label>
-<input id="tarjetaCompraMonto" type="number" min="0" step="0.01">
-</div>
-
-<div>
-<label>Número de cuotas</label>
-<input id="tarjetaCompraCuotas" type="number" min="1" value="1">
-</div>
-
-<div>
-<label>Cuota actual</label>
-<input id="tarjetaCompraCuotaActual" type="number" min="1" value="1">
-</div>
-
-<div>
-<label>Día de vencimiento</label>
-<input id="tarjetaCompraDia" type="number" min="1" max="31" value="20">
-</div>
-
-</div>
-
-<button class="button" onclick="registrarCompraTarjeta()">
-💳 Registrar compra
-</button>
-
+<button class="button" onclick="registrarCompraTarjeta()">💳 Registrar compra</button>
 <div id="listaComprasTarjeta" style="margin-top:15px"></div>
-
 </div>
-
-
-<!-- MOVIMIENTO -->
 
 <div class="section">
-
 <h2>➕ Registrar movimiento de dinero</h2>
-
 <div class="form-grid">
-
-<div>
-<label>Tipo</label>
-
+<div><label>Tipo</label>
 <select id="tipoMovimiento">
-
 <option value="ingreso">💰 Ingreso recibido</option>
 <option value="gasto">💸 Gasto</option>
 <option value="pago">📆 Pago de compromiso</option>
 <option value="pagoTarjeta">💳 Pago de tarjeta</option>
 <option value="reserva">🎯 Pasar dinero a reserva</option>
 <option value="retiroReserva">↩️ Sacar dinero de reserva</option>
-
-</select>
+</select></div>
+<div><label>Monto</label><input id="montoMovimiento" type="number" min="0" step="0.01"></div>
 </div>
-
-<div>
-<label>Monto</label>
-<input id="montoMovimiento" type="number" min="0" step="0.01">
-</div>
-
-</div>
-
 <label>Concepto</label>
 <input id="conceptoMovimiento" type="text" placeholder="Ej: Sueldo">
-
 <br><br>
-
-<button class="button" onclick="registrarMovimiento()">
-Registrar movimiento
-</button>
-
+<button class="button" onclick="registrarMovimiento()">Registrar movimiento</button>
 </div>
-
-
-<!-- MOVIMIENTOS -->
 
 <div class="section">
-
 <h2>📋 Movimientos recientes</h2>
-
 <div id="listaMovimientos"></div>
-
 </div>
-
-
-<!-- ASISTENTE -->
 
 <div class="section info">
-
 <h2>🤖 Tu asistente</h2>
-
-<p id="mensaje">
-Tu dinero en cuenta y tu dinero reservado son tuyos. Los compromisos futuros se muestran por separado.
-</p>
-
+<p id="mensaje">Tu dinero en cuenta y tu dinero reservado son tuyos. Los compromisos futuros se muestran por separado.</p>
 </div>
 
-
-<!-- CONTROL LABORAL -->
-
 <div class="section">
-
 <h2>📅 Control laboral del mes</h2>
-
 <div class="form-grid">
-
-<div>
-<label>Mes</label>
-<input type="month" id="mesLaboral">
+<div><label>Mes</label><input type="month" id="mesLaboral"></div>
+<div><label>Sueldo mensual</label><input type="number" id="sueldoMensual" min="0" step="0.01"></div>
 </div>
-
-<div>
-<label>Sueldo mensual</label>
-<input type="number" id="sueldoMensual" min="0" step="0.01">
-</div>
-
-</div>
-
 <div class="actions">
-
-<button class="button" onclick="generarCalendario()">
-📅 Generar calendario
-</button>
-
-<button class="button secondary" onclick="prepararOctubre()">
-🍂 Empezar octubre 2026
-</button>
-
+<button class="button" onclick="generarCalendario()">📅 Generar calendario</button>
+<button class="button secondary" onclick="prepararOctubre()">🍂 Empezar octubre 2026</button>
 </div>
-
 </div>
-
-
-<!-- RESUMEN LABORAL -->
 
 <div class="section">
-
 <h2>📊 Resumen laboral</h2>
-
 <div class="grid">
-
-<div>
-<div class="label">Valor diario</div>
-<div class="value blue" id="valorDiario">S/ 0.00</div>
+<div><div class="label">Valor diario</div><div class="value blue" id="valorDiario">S/ 0.00</div></div>
+<div><div class="label">Total calculado</div><div class="value green" id="totalDiasLaboral">S/ 0.00</div></div>
+<div><div class="label">Días normales</div><div class="value" id="diasNormales">0</div></div>
+<div><div class="label">Faltas</div><div class="value red" id="faltas">0</div></div>
+<div><div class="label">Medios días</div><div class="value" id="mediosDias">0</div></div>
+<div><div class="label">Días dobles</div><div class="value" id="diasDobles">0</div></div>
+<div><div class="label">Días triples</div><div class="value" id="diasTriples">0</div></div>
 </div>
-
-<div>
-<div class="label">Total calculado</div>
-<div class="value green" id="totalDiasLaboral">S/ 0.00</div>
 </div>
-
-<div>
-<div class="label">Días normales</div>
-<div class="value" id="diasNormales">0</div>
-</div>
-
-<div>
-<div class="label">Faltas</div>
-<div class="value red" id="faltas">0</div>
-</div>
-
-<div>
-<div class="label">Medios días</div>
-<div class="value" id="mediosDias">0</div>
-</div>
-
-<div>
-<div class="label">Días dobles</div>
-<div class="value" id="diasDobles">0</div>
-</div>
-
-<div>
-<div class="label">Días triples</div>
-<div class="value" id="diasTriples">0</div>
-</div>
-
-</div>
-
-</div>
-
-
-<!-- CALENDARIO -->
 
 <div class="section">
-
 <h2>🗓️ Calendario laboral</h2>
-
-<div id="calendarioLaboral">
-
-<div class="vacio">
-Selecciona un mes y genera el calendario.
+<div id="calendarioLaboral"><div class="vacio">Selecciona un mes y genera el calendario.</div></div>
 </div>
-
-</div>
-
-</div>
-
-
-<!-- BONOS -->
 
 <div class="section">
-
 <h2>➕ Bonos e ingresos adicionales</h2>
-
 <div class="form-grid-3">
-
-<div>
-<label>Concepto</label>
-<input id="extraConcepto" type="text">
-</div>
-
-<div>
-<label>Monto</label>
-<input id="extraMonto" type="number" min="0" step="0.01">
-</div>
-
-<div>
-<label>Tipo</label>
-
+<div><label>Concepto</label><input id="extraConcepto" type="text"></div>
+<div><label>Monto</label><input id="extraMonto" type="number" min="0" step="0.01"></div>
+<div><label>Tipo</label>
 <select id="extraTipo">
-
 <option value="bono">🎁 Bono</option>
 <option value="extra">➕ Ingreso extra</option>
 <option value="horaExtra">🕐 Horas extra</option>
 <option value="adicional">💰 Pago adicional</option>
-
-</select>
+</select></div>
 </div>
-
-</div>
-
-<button class="button green-button" onclick="agregarExtra()">
-Agregar ingreso
-</button>
-
+<button class="button green-button" onclick="agregarExtra()">Agregar ingreso</button>
 <div id="listaExtras" style="margin-top:15px"></div>
-
 </div>
 
-
-<!-- DESCUENTOS -->
-
 <div class="section">
-
 <h2>➖ Descuentos</h2>
-
 <div class="form-grid">
-
-<div>
-<label>Concepto</label>
-<input id="descuentoConcepto" type="text">
+<div><label>Concepto</label><input id="descuentoConcepto" type="text"></div>
+<div><label>Monto</label><input id="descuentoMonto" type="number" min="0" step="0.01"></div>
 </div>
-
-<div>
-<label>Monto</label>
-<input id="descuentoMonto" type="number" min="0" step="0.01">
-</div>
-
-</div>
-
-<button class="button orange-button" onclick="agregarDescuento()">
-Agregar descuento
-</button>
-
+<button class="button orange-button" onclick="agregarDescuento()">Agregar descuento</button>
 <div id="listaDescuentos" style="margin-top:15px"></div>
-
 </div>
 
-
-<!-- RESULTADO -->
-
 <div class="section">
-
 <h2>💰 Resultado estimado del mes</h2>
-
 <div class="resumen-final">
-
-<div class="resumen-box">
-<div class="label">Sueldo según calendario</div>
-<div class="value blue" id="resultadoSueldo">S/ 0.00</div>
+<div class="resumen-box"><div class="label">Sueldo según calendario</div><div class="value blue" id="resultadoSueldo">S/ 0.00</div></div>
+<div class="resumen-box"><div class="label">Bonos y extras</div><div class="value green" id="resultadoExtras">S/ 0.00</div></div>
+<div class="resumen-box"><div class="label">Descuentos</div><div class="value red" id="resultadoDescuentos">S/ 0.00</div></div>
 </div>
-
-<div class="resumen-box">
-<div class="label">Bonos y extras</div>
-<div class="value green" id="resultadoExtras">S/ 0.00</div>
-</div>
-
-<div class="resumen-box">
-<div class="label">Descuentos</div>
-<div class="value red" id="resultadoDescuentos">S/ 0.00</div>
-</div>
-
-</div>
-
 <div class="total-final">
-
-<div class="label">
-TOTAL ESTIMADO DEL MES
+<div class="label">TOTAL ESTIMADO DEL MES</div>
+<div class="value green" id="totalEstimado">S/ 0.00</div>
 </div>
-
-<div class="value green" id="totalEstimado">
-S/ 0.00
 </div>
-
-</div>
-
-</div>
-
-
-<!-- HISTORIAL -->
 
 <div class="section">
-
 <h2>📚 Historial mensual</h2>
-
-<p style="margin-bottom:12px;color:#68727d">
-El historial sirve para conservar meses anteriores. Si quieres empezar desde octubre, puedes eliminarlo sin afectar tu dinero.
-</p>
-
-<button class="button red-button" onclick="borrarHistorialMensual()">
-🗑️ Borrar historial mensual
-</button>
-
+<p style="margin-bottom:12px;color:#68727d">El historial conserva los meses anteriores. Borrarlo no afecta tu dinero.</p>
+<div class="actions">
+<button class="button green-button" onclick="cerrarMes()">📥 Cerrar y guardar este mes</button>
+<button class="button red-button" onclick="borrarHistorialMensual()">🗑️ Borrar historial mensual</button>
+</div>
 <div id="historialMensual" style="margin-top:15px"></div>
-
 </div>
 
 </div>
-
+</div>
 
 <script>
+/* ===== SUPABASE: pega aquí tus datos (Project Settings → API). Usa la clave anon/publishable, NUNCA la service_role ===== */
+const SUPABASE_URL="https://bowludslcthtnzaiwngm.supabase.co";
+const SUPABASE_KEY="sb_publishable_qdh82xhYU6-UsC_QGMyaPA_aHDyusoE";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const DATOS_INICIALES = {
+let datos,usuarioId=null,timerNube=null;
 
-saldo:0,
-reservado:0,
-limiteTarjeta:0,
-deudaTarjeta:0,
+/* ===== UTILIDADES ===== */
+const $=id=>document.getElementById(id);
+const num=id=>Number($(id).value)||0;
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dinero=n=>"S/ "+(Number(n)||0).toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const redondear=n=>Math.round((Number(n)||0)*100)/100;
+const ahora=()=>new Date().toLocaleString("es-PE");
+const setTxt=(id,t)=>{$(id).textContent=t};
+const vacio=t=>"<div class='vacio'>"+t+"</div>";
 
-movimientos:[],
-compromisos:[],
-comprasTarjeta:[],
+const ICONOS={credito:"🏦",tarjeta:"💳",servicio:"💡",alquiler:"🏠",prestamo:"💰"};
+const FUENTES={sueldo:"💵 Sueldo",cuenta:"💰 Cuenta",tarjeta:"💳 Tarjeta"};
+const icono=t=>ICONOS[t]||"📄";
+const fuenteTxt=f=>FUENTES[f]||"📄 Otro";
 
-laboral:{
-mes:"",
-sueldo:0,
-dias:{},
-extras:[],
-descuentos:[]
-},
-
-historial:[]
-
-};
-
-let datos;
-
-
-/* =========================
-   UTILIDADES
-========================= */
-
-function dinero(numero){
-
-    numero=Number(numero)||0;
-
-    return "S/ "+
-    numero.toLocaleString(
-        "es-PE",
-        {
-            minimumFractionDigits:2,
-            maximumFractionDigits:2
-        }
-    );
+function datosIniciales(){
+  return{saldo:0,reservado:0,limiteTarjeta:0,deudaTarjeta:0,movimientos:[],compromisos:[],comprasTarjeta:[],
+  laboral:{mes:"",sueldo:0,dias:{},extras:[],descuentos:[]},historial:[]};
 }
-
-
-function redondear(numero){
-
-    return Math.round(
-        (Number(numero)||0)*100
-    )/100;
-
-}
-
 
 function guardarDatos(){
-
-    localStorage.setItem(
-        "asistenteFinanciero",
-        JSON.stringify(datos)
-    );
-
+  if(!usuarioId)return;
+  try{localStorage.setItem("asistenteFinanciero_"+usuarioId,JSON.stringify(datos));}catch(e){}
+  clearTimeout(timerNube);
+  timerNube=setTimeout(async function(){
+    const{error}=await sb.from("finanzas").upsert({user_id:usuarioId,datos:datos,updated_at:new Date().toISOString()});
+    if(error)console.error("Error al guardar en la nube:",error);
+  },800);
 }
 
-
-function cargarDatos(){
-
-    const guardado=
-        localStorage.getItem(
-            "asistenteFinanciero"
-        );
-
-    if(guardado){
-
-        try{
-
-            datos=JSON.parse(guardado);
-
-        }catch(e){
-
-            datos=
-                JSON.parse(
-                    JSON.stringify(
-                        DATOS_INICIALES
-                    )
-                );
-
-        }
-
-    }else{
-
-        datos=
-            JSON.parse(
-                JSON.stringify(
-                    DATOS_INICIALES
-                )
-            );
-
-    }
-
-
-    if(!datos.movimientos)
-        datos.movimientos=[];
-
-    if(!datos.compromisos)
-        datos.compromisos=[];
-
-    if(!datos.comprasTarjeta)
-        datos.comprasTarjeta=[];
-
-    if(!datos.historial)
-        datos.historial=[];
-
-
-    if(!datos.laboral){
-
-        datos.laboral={
-            mes:"",
-            sueldo:0,
-            dias:{},
-            extras:[],
-            descuentos:[]
-        };
-
-    }
-
-
-    if(!datos.laboral.dias)
-        datos.laboral.dias={};
-
-    if(!datos.laboral.extras)
-        datos.laboral.extras=[];
-
-    if(!datos.laboral.descuentos)
-        datos.laboral.descuentos=[];
-
-
-    /* CORRECCIÓN DE MOVIMIENTOS ANTIGUOS */
-
-    datos.movimientos=
-        datos.movimientos.map(function(mov){
-
-            if(!mov)
-                return null;
-
-            if(!mov.concepto){
-
-                mov.concepto=
-                    mov.nombre ||
-                    mov.descripcion ||
-                    mov.tipo ||
-                    "Movimiento";
-
-            }
-
-            if(mov.monto===undefined){
-
-                mov.monto=
-                    Number(mov.valor)||0;
-
-            }
-
-            if(!mov.signo){
-
-                if(
-                    mov.tipo==="ingreso"||
-                    mov.tipo==="reserva"
-                ){
-
-                    mov.signo="+";
-
-                }else{
-
-                    mov.signo="−";
-
-                }
-
-            }
-
-            if(!mov.clase){
-
-                if(
-                    mov.tipo==="ingreso"||
-                    mov.tipo==="reserva"
-                ){
-
-                    mov.clase="green";
-
-                }else{
-
-                    mov.clase="red";
-
-                }
-
-            }
-
-            if(!mov.fecha){
-
-                mov.fecha=
-                    new Date().toLocaleString(
-                        "es-PE"
-                    );
-
-            }
-
-            return mov;
-
-        }).filter(Boolean);
-
-
-    guardarDatos();
-
+function cargarDatos(desdeNube){
+  datos=desdeNube?JSON.parse(JSON.stringify(desdeNube)):null;
+  if(!datos){
+    try{const g=localStorage.getItem("asistenteFinanciero_"+usuarioId);if(g)datos=JSON.parse(g);}catch(e){}
+  }
+  if(!datos||typeof datos!=="object")datos=datosIniciales();
+  ["movimientos","compromisos","comprasTarjeta","historial"].forEach(k=>{if(!Array.isArray(datos[k]))datos[k]=[];});
+  ["saldo","reservado","limiteTarjeta","deudaTarjeta"].forEach(k=>{datos[k]=Number(datos[k])||0;});
+  if(!datos.laboral)datos.laboral={mes:"",sueldo:0,dias:{},extras:[],descuentos:[]};
+  if(!datos.laboral.dias)datos.laboral.dias={};
+  if(!Array.isArray(datos.laboral.extras))datos.laboral.extras=[];
+  if(!Array.isArray(datos.laboral.descuentos))datos.laboral.descuentos=[];
+  datos.movimientos=datos.movimientos.filter(Boolean).map(m=>{
+    if(!m.concepto)m.concepto=m.nombre||m.descripcion||m.tipo||"Movimiento";
+    if(m.monto===undefined)m.monto=Number(m.valor)||0;
+    const pos=(m.tipo==="ingreso"||m.tipo==="reserva");
+    if(!m.signo)m.signo=pos?"+":"−";
+    if(!m.clase)m.clase=pos?"green":"red";
+    if(!m.fecha)m.fecha=ahora();
+    return m;
+  });
+  guardarDatos();
 }
 
-
-/* =========================
-   CONFIGURACIÓN
-========================= */
-
+/* ===== CONFIGURACIÓN ===== */
 function cargarConfiguracion(){
-
-    document.getElementById(
-        "configSaldo"
-    ).value=
-        datos.saldo||"";
-
-
-    document.getElementById(
-        "configSueldo"
-    ).value=
-        datos.laboral.sueldo||"";
-
-
-    document.getElementById(
-        "configLimite"
-    ).value=
-        datos.limiteTarjeta||"";
-
-
-    document.getElementById(
-        "configDeuda"
-    ).value=
-        datos.deudaTarjeta||"";
-
-
-    document.getElementById(
-        "configReservado"
-    ).value=
-        datos.reservado||"";
-
+  $("configSaldo").value=datos.saldo||"";
+  $("configSueldo").value=datos.laboral.sueldo||"";
+  $("configLimite").value=datos.limiteTarjeta||"";
+  $("configDeuda").value=datos.deudaTarjeta||"";
+  $("configReservado").value=datos.reservado||"";
 }
-
 
 function guardarConfiguracion(){
-
-    const saldo=
-        Number(
-            document.getElementById(
-                "configSaldo"
-            ).value
-        )||0;
-
-
-    const sueldo=
-        Number(
-            document.getElementById(
-                "configSueldo"
-            ).value
-        )||0;
-
-
-    const limite=
-        Number(
-            document.getElementById(
-                "configLimite"
-            ).value
-        )||0;
-
-
-    const deuda=
-        Number(
-            document.getElementById(
-                "configDeuda"
-            ).value
-        )||0;
-
-
-    const reservado=
-        Number(
-            document.getElementById(
-                "configReservado"
-            ).value
-        )||0;
-
-
-    if(
-        saldo<0||
-        sueldo<0||
-        limite<0||
-        deuda<0||
-        reservado<0
-    ){
-
-        alert(
-            "Los montos no pueden ser negativos."
-        );
-
-        return;
-
-    }
-
-
-    if(deuda>limite){
-
-        alert(
-            "La deuda de tarjeta no puede superar el límite."
-        );
-
-        return;
-
-    }
-
-
-    datos.saldo=
-        redondear(saldo);
-
-    datos.laboral.sueldo=
-        redondear(sueldo);
-
-    datos.limiteTarjeta=
-        redondear(limite);
-
-    datos.deudaTarjeta=
-        redondear(deuda);
-
-    datos.reservado=
-        redondear(reservado);
-
-
-    guardarDatos();
-
-    actualizar();
-
-    alert(
-        "✅ Datos guardados correctamente."
-    );
-
+  const saldo=num("configSaldo"),sueldo=num("configSueldo"),limite=num("configLimite"),deuda=num("configDeuda"),reservado=num("configReservado");
+  if(saldo<0||sueldo<0||limite<0||deuda<0||reservado<0)return alert("Los montos no pueden ser negativos.");
+  if(deuda>limite)return alert("La deuda de tarjeta no puede superar el límite.");
+  datos.saldo=redondear(saldo);
+  datos.laboral.sueldo=redondear(sueldo);
+  datos.limiteTarjeta=redondear(limite);
+  datos.deudaTarjeta=redondear(deuda);
+  datos.reservado=redondear(reservado);
+  guardarDatos();actualizar();
+  if(datos.laboral.mes&&datos.laboral.sueldo){mostrarCalendario();actualizarResultadoFinal();}
+  alert("✅ Datos guardados correctamente.");
 }
 
-
-/* =========================
-   ACTUALIZAR RESUMEN
-========================= */
-
+/* ===== RESUMEN ===== */
 function actualizar(){
-
-    document.getElementById(
-        "saldo"
-    ).textContent=
-        dinero(datos.saldo);
-
-
-    document.getElementById(
-        "reservado"
-    ).textContent=
-        dinero(datos.reservado);
-
-
-    document.getElementById(
-        "tarjeta"
-    ).textContent=
-        dinero(datos.deudaTarjeta);
-
-
-    const dineroPropio=
-        redondear(
-            Number(datos.saldo)+
-            Number(datos.reservado)
-        );
-
-
-    document.getElementById(
-        "dineroPropio"
-    ).textContent=
-        dinero(dineroPropio);
-
-
-    document.getElementById(
-        "dineroCuentaResumen"
-    ).textContent=
-        dinero(datos.saldo);
-
-
-    document.getElementById(
-        "dineroReservadoResumen"
-    ).textContent=
-        dinero(datos.reservado);
-
-
-    document.getElementById(
-        "dineroPropioResumen"
-    ).textContent=
-        dinero(dineroPropio);
-
-
-    document.getElementById(
-        "limiteTarjeta"
-    ).textContent=
-        dinero(datos.limiteTarjeta);
-
-
-    document.getElementById(
-        "deudaTarjeta"
-    ).textContent=
-        dinero(datos.deudaTarjeta);
-
-
-    const credito=
-        Math.max(
-            0,
-            redondear(
-                datos.limiteTarjeta-
-                datos.deudaTarjeta
-            )
-        );
-
-
-    document.getElementById(
-        "creditoDisponible"
-    ).textContent=
-        dinero(credito);
-
-
-    mostrarCompromisos();
-    mostrarComprasTarjeta();
-    mostrarMovimientos();
-    mostrarProximoVencimiento();
-    mostrarExtrasInicio();
-    mostrarDescuentosInicio();
-    mostrarHistorial();
-
+  const propio=redondear(datos.saldo+datos.reservado);
+  setTxt("saldo",dinero(datos.saldo));
+  setTxt("reservado",dinero(datos.reservado));
+  setTxt("tarjeta",dinero(datos.deudaTarjeta));
+  setTxt("dineroPropio",dinero(propio));
+  setTxt("dineroCuentaResumen",dinero(datos.saldo));
+  setTxt("dineroReservadoResumen",dinero(datos.reservado));
+  setTxt("dineroPropioResumen",dinero(propio));
+  setTxt("limiteTarjeta",dinero(datos.limiteTarjeta));
+  setTxt("deudaTarjeta",dinero(datos.deudaTarjeta));
+  setTxt("creditoDisponible",dinero(Math.max(0,redondear(datos.limiteTarjeta-datos.deudaTarjeta))));
+  mostrarCompromisos();mostrarComprasTarjeta();mostrarMovimientos();mostrarProximoVencimiento();
+  mostrarExtras();mostrarDescuentos();mostrarHistorial();
 }
 
-
-/* =========================
-   COMPROMISOS
-========================= */
-
+/* ===== COMPROMISOS ===== */
 function agregarCompromiso(){
-
-    const nombre=
-        document.getElementById(
-            "compNombre"
-        ).value.trim();
-
-
-    const tipo=
-        document.getElementById(
-            "compTipo"
-        ).value;
-
-
-    const monto=
-        Number(
-            document.getElementById(
-                "compMonto"
-            ).value
-        )||0;
-
-
-    const dia=
-        Number(
-            document.getElementById(
-                "compDia"
-            ).value
-        )||0;
-
-
-    const fuente=
-        document.getElementById(
-            "compFuente"
-        ).value;
-
-
-    const cuotas=
-        Number(
-            document.getElementById(
-                "compCuotas"
-            ).value
-        )||1;
-
-
-    const cuotaActual=
-        Number(
-            document.getElementById(
-                "compCuotaActual"
-            ).value
-        )||1;
-
-
-    const fecha=
-        document.getElementById(
-            "compFecha"
-        ).value;
-
-
-    if(!nombre){
-
-        alert(
-            "Escribe el nombre del pago."
-        );
-
-        return;
-
-    }
-
-
-    if(monto<=0){
-
-        alert(
-            "Ingresa un monto válido."
-        );
-
-        return;
-
-    }
-
-
-    if(dia<1||dia>31){
-
-        alert(
-            "El día debe estar entre 1 y 31."
-        );
-
-        return;
-
-    }
-
-
-    if(cuotaActual>cuotas){
-
-        alert(
-            "La cuota actual no puede superar el número de cuotas."
-        );
-
-        return;
-
-    }
-
-
-    datos.compromisos.push({
-
-        id:Date.now(),
-
-        nombre:nombre,
-
-        tipo:tipo,
-
-        monto:redondear(monto),
-
-        dia:dia,
-
-        fuente:fuente,
-
-        cuotas:cuotas,
-
-        cuotaActual:cuotaActual,
-
-        fecha:fecha,
-
-        estado:"pendiente"
-
-    });
-
-
-    guardarDatos();
-
-    limpiarCompromiso();
-
-    actualizar();
-
-    alert(
-        "✅ Pago pendiente guardado."
-    );
-
+  const nombre=$("compNombre").value.trim(),tipo=$("compTipo").value,monto=num("compMonto"),dia=num("compDia"),
+  fuente=$("compFuente").value,cuotas=num("compCuotas")||1,cuotaActual=num("compCuotaActual")||1,fecha=$("compFecha").value;
+  if(!nombre)return alert("Escribe el nombre del pago.");
+  if(monto<=0)return alert("Ingresa un monto válido.");
+  if(dia<1||dia>31)return alert("El día debe estar entre 1 y 31.");
+  if(cuotaActual>cuotas)return alert("La cuota actual no puede superar el número de cuotas.");
+  datos.compromisos.push({id:Date.now(),nombre,tipo,monto:redondear(monto),dia,fuente,cuotas,cuotaActual,fecha,estado:"pendiente"});
+  guardarDatos();
+  $("compNombre").value="";$("compMonto").value="";$("compDia").value="";
+  $("compCuotas").value="1";$("compCuotaActual").value="1";$("compFecha").value="";
+  actualizar();alert("✅ Pago pendiente guardado.");
 }
-
-
-function obtenerTipoCompromiso(tipo){
-
-    if(tipo==="credito")
-        return "🏦";
-
-    if(tipo==="tarjeta")
-        return "💳";
-
-    if(tipo==="servicio")
-        return "💡";
-
-    if(tipo==="alquiler")
-        return "🏠";
-
-    if(tipo==="prestamo")
-        return "💰";
-
-    return "📄";
-
-}
-
-
-function obtenerNombreTipo(tipo){
-
-    if(tipo==="credito")
-        return "Crédito Banco";
-
-    if(tipo==="tarjeta")
-        return "Tarjeta de crédito";
-
-    if(tipo==="servicio")
-        return "Servicio";
-
-    if(tipo==="alquiler")
-        return "Alquiler";
-
-    if(tipo==="prestamo")
-        return "Préstamo";
-
-    return "Otro";
-
-}
-
-
-function obtenerFuente(fuente){
-
-    if(fuente==="sueldo")
-        return "💵 Sueldo";
-
-    if(fuente==="cuenta")
-        return "💰 Cuenta";
-
-    if(fuente==="tarjeta")
-        return "💳 Tarjeta";
-
-    return "📄 Otro";
-
-}
-
 
 function mostrarCompromisos(){
-
-    const lista=
-        document.getElementById(
-            "listaCompromisos"
-        );
-
-    lista.innerHTML="";
-
-
-    if(datos.compromisos.length===0){
-
-        lista.innerHTML=
-            "<div class='vacio'>"+
-            "No tienes pagos pendientes registrados."+
-            "</div>";
-
-        return;
-
-    }
-
-
-    datos.compromisos.forEach(
-        function(compromiso){
-
-            const elemento=
-                document.createElement(
-                    "div"
-                );
-
-
-            elemento.className=
-                "compromiso"+
-                (
-                    compromiso.estado==="pagado"
-                    ?" pagado"
-                    :""
-                );
-
-
-            const estadoPagado=
-                compromiso.estado==="pagado";
-
-
-            const tipoTexto=
-                obtenerTipoCompromiso(
-                    compromiso.tipo
-                );
-
-
-            const fuenteTexto=
-                obtenerFuente(
-                    compromiso.fuente
-                );
-
-
-            const cuotaTexto=
-                compromiso.cuotas>1
-                ?
-                compromiso.cuotaActual+
-                " de "+
-                compromiso.cuotas
-                :
-                "Pago único";
-
-
-            elemento.innerHTML=
-
-                "<div class='compromiso-cabecera'>"+
-
-                    "<div>"+
-
-                        "<div class='compromiso-titulo'>"+
-                            tipoTexto+
-                            " "+
-                            compromiso.nombre+
-                        "</div>"+
-
-                        "<span class='badge "+
-                        (
-                            estadoPagado
-                            ?"badge-pagado"
-                            :"badge-pendiente"
-                        )+
-                        "'>"+
-                        (
-                            estadoPagado
-                            ?"✅ PAGADO"
-                            :"⏳ PENDIENTE"
-                        )+
-                        "</span>"+
-
-                    "</div>"+
-
-                    "<div class='compromiso-monto "+
-                    (
-                        estadoPagado
-                        ?"green"
-                        :"orange"
-                    )+
-                    "'>"+
-                        dinero(compromiso.monto)+
-                    "</div>"+
-
-                "</div>"+
-
-
-                "<div class='compromiso-detalles'>"+
-
-                    "<div class='detalle'>"+
-                        "<small>📅 Vencimiento</small>"+
-                        "<strong>Día "+
-                            compromiso.dia+
-                        "</strong>"+
-                    "</div>"+
-
-                    "<div class='detalle'>"+
-                        "<small>💵 Se paga con</small>"+
-                        "<strong>"+
-                            fuenteTexto+
-                        "</strong>"+
-                    "</div>"+
-
-                    "<div class='detalle'>"+
-                        "<small>🔢 Cuotas</small>"+
-                        "<strong>"+
-                            cuotaTexto+
-                        "</strong>"+
-                    "</div>"+
-
-                "</div>"+
-
-                (
-                    compromiso.fecha
-                    ?
-                    "<div class='fecha'>"+
-                    "Aplica desde: "+
-                    formatearFecha(
-                        compromiso.fecha
-                    )+
-                    "</div>"
-                    :
-                    ""
-                )+
-
-                "<div class='actions'>"+
-
-                (
-                    !estadoPagado
-                    ?
-                    "<button class='button green-button' onclick='pagarCompromiso("+
-                    compromiso.id+
-                    ")'>"+
-                    "✅ Marcar como pagado"+
-                    "</button>"
-                    :
-                    "<button class='button secondary' onclick='reactivarCompromiso("+
-                    compromiso.id+
-                    ")'>"+
-                    "↩️ Volver a pendiente"+
-                    "</button>"
-                )+
-
-                "<button class='button red-button' onclick='eliminarCompromiso("+
-                compromiso.id+
-                ")'>"+
-                "Eliminar"+
-                "</button>"+
-
-                "</div>";
-
-
-            lista.appendChild(elemento);
-
-        }
-    );
-
+  const l=$("listaCompromisos");
+  if(!datos.compromisos.length){l.innerHTML=vacio("No tienes pagos pendientes registrados.");return;}
+  l.innerHTML=datos.compromisos.map(c=>{
+    const p=c.estado==="pagado";
+    const cuota=c.cuotas>1?c.cuotaActual+" de "+c.cuotas:"Pago único";
+    return `<div class="compromiso${p?" pagado":""}">
+<div class="compromiso-cabecera"><div>
+<div class="compromiso-titulo">${icono(c.tipo)} ${esc(c.nombre)}</div>
+<span class="badge ${p?"badge-pagado":"badge-pendiente"}">${p?"✅ PAGADO":"⏳ PENDIENTE"}</span>
+</div><div class="compromiso-monto ${p?"green":"orange"}">${dinero(c.monto)}</div></div>
+<div class="compromiso-detalles">
+<div class="detalle"><small>📅 Vencimiento</small><strong>Día ${esc(c.dia)}</strong></div>
+<div class="detalle"><small>💵 Se paga con</small><strong>${fuenteTxt(c.fuente)}</strong></div>
+<div class="detalle"><small>🔢 Cuotas</small><strong>${cuota}</strong></div>
+</div>
+${c.fecha?`<div class="fecha">Aplica desde: ${formatearFecha(c.fecha)}</div>`:""}
+<div class="actions">
+${p?`<button class="button secondary" onclick="reactivarCompromiso(${c.id})">↩️ Volver a pendiente</button>`
+:`<button class="button green-button" onclick="pagarCompromiso(${c.id})">✅ Marcar como pagado</button>`}
+<button class="button red-button" onclick="eliminarCompromiso(${c.id})">Eliminar</button>
+</div></div>`;
+  }).join("");
 }
-
 
 function pagarCompromiso(id){
-
-    const compromiso=
-        datos.compromisos.find(
-            function(item){
-                return item.id===id;
-            }
-        );
-
-
-    if(!compromiso)
-        return;
-
-
-    const confirmar=
-        confirm(
-            "¿Realmente pagaste este compromiso?\n\n"+
-            compromiso.nombre+
-            "\n"+
-            dinero(compromiso.monto)
-        );
-
-
-    if(!confirmar)
-        return;
-
-
-    /*
-       IMPORTANTE:
-       Solo descuenta dinero de cuenta
-       cuando la fuente indicada es cuenta
-       o sueldo.
-    */
-
-    if(
-        compromiso.fuente==="cuenta"||
-        compromiso.fuente==="sueldo"
-    ){
-
-        if(
-            compromiso.monto>
-            datos.saldo
-        ){
-
-            alert(
-                "No tienes suficiente dinero en cuenta para registrar este pago."
-            );
-
-            return;
-
-        }
-
-        datos.saldo=
-            redondear(
-                datos.saldo-
-                compromiso.monto
-            );
-
-    }
-
-
-    /*
-       Si el compromiso es de tarjeta,
-       solo modifica la deuda si corresponde.
-    */
-
-    if(
-        compromiso.tipo==="tarjeta" &&
-        compromiso.fuente!=="tarjeta"
-    ){
-
-        datos.deudaTarjeta=
-            Math.max(
-                0,
-                redondear(
-                    datos.deudaTarjeta-
-                    compromiso.monto
-                )
-            );
-
-    }
-
-
-    compromiso.estado="pagado";
-
-    compromiso.fechaPago=
-        new Date().toLocaleString(
-            "es-PE"
-        );
-
-
-    guardarDatos();
-
-    actualizar();
-
-    alert(
-        "✅ Pago registrado correctamente."
-    );
-
+  const c=datos.compromisos.find(i=>i.id===id);
+  if(!c)return;
+  if(!confirm("¿Realmente pagaste este compromiso?\n\n"+c.nombre+"\n"+dinero(c.monto)))return;
+  if(c.fuente==="cuenta"||c.fuente==="sueldo"){
+    if(c.monto>datos.saldo)return alert("No tienes suficiente dinero en cuenta para registrar este pago.");
+    datos.saldo=redondear(datos.saldo-c.monto);
+    datos.movimientos.push({concepto:"Pago: "+c.nombre,monto:redondear(c.monto),signo:"−",clase:"red",tipo:"pago",fecha:ahora()});
+  }
+  if(c.tipo==="tarjeta"&&c.fuente!=="tarjeta"){
+    datos.deudaTarjeta=Math.max(0,redondear(datos.deudaTarjeta-c.monto));
+  }
+  if(c.cuotas>1&&c.cuotaActual<c.cuotas){
+    c.cuotaActual++;
+    alert("✅ Cuota pagada. Siguiente: "+c.cuotaActual+" de "+c.cuotas);
+  }else{
+    c.estado="pagado";c.fechaPago=ahora();
+    alert("✅ Pago registrado correctamente.");
+  }
+  guardarDatos();actualizar();
 }
-
 
 function reactivarCompromiso(id){
-
-    const compromiso=
-        datos.compromisos.find(
-            function(item){
-                return item.id===id;
-            }
-        );
-
-
-    if(!compromiso)
-        return;
-
-
-    compromiso.estado="pendiente";
-
-    delete compromiso.fechaPago;
-
-    guardarDatos();
-
-    actualizar();
-
+  const c=datos.compromisos.find(i=>i.id===id);
+  if(!c)return;
+  c.estado="pendiente";delete c.fechaPago;
+  guardarDatos();actualizar();
 }
-
 
 function eliminarCompromiso(id){
-
-    if(
-        !confirm(
-            "¿Eliminar este compromiso?"
-        )
-    )
-        return;
-
-
-    datos.compromisos=
-        datos.compromisos.filter(
-            function(item){
-                return item.id!==id;
-            }
-        );
-
-
-    guardarDatos();
-
-    actualizar();
-
+  if(!confirm("¿Eliminar este compromiso?"))return;
+  datos.compromisos=datos.compromisos.filter(i=>i.id!==id);
+  guardarDatos();actualizar();
 }
-
-
-function limpiarCompromiso(){
-
-    document.getElementById(
-        "compNombre"
-    ).value="";
-
-    document.getElementById(
-        "compMonto"
-    ).value="";
-
-    document.getElementById(
-        "compDia"
-    ).value="";
-
-    document.getElementById(
-        "compCuotas"
-    ).value="1";
-
-    document.getElementById(
-        "compCuotaActual"
-    ).value="1";
-
-    document.getElementById(
-        "compFecha"
-    ).value="";
-
-}
-
-
-/* =========================
-   PROXIMO VENCIMIENTO
-========================= */
 
 function mostrarProximoVencimiento(){
-
-    const contenedor=
-        document.getElementById(
-            "proximoVencimiento"
-        );
-
-
-    contenedor.innerHTML="";
-
-
-    const pendientes=
-        datos.compromisos.filter(
-            function(item){
-                return item.estado==="pendiente";
-            }
-        );
-
-
-    if(pendientes.length===0)
-        return;
-
-
-    const ahora=new Date();
-
-    const diaActual=
-        ahora.getDate();
-
-    const mesActual=
-        ahora.getMonth();
-
-    const añoActual=
-        ahora.getFullYear();
-
-
-    let proximos=[];
-
-
-    pendientes.forEach(
-        function(item){
-
-            let mes=mesActual;
-            let año=añoActual;
-
-            let ultimoDia=
-                new Date(
-                    año,
-                    mes+1,
-                    0
-                ).getDate();
-
-            let dia=
-                Math.min(
-                    item.dia,
-                    ultimoDia
-                );
-
-
-            if(dia<diaActual){
-
-                mes++;
-
-                if(mes>11){
-
-                    mes=0;
-                    año++;
-
-                }
-
-                ultimoDia=
-                    new Date(
-                        año,
-                        mes+1,
-                        0
-                    ).getDate();
-
-                dia=
-                    Math.min(
-                        item.dia,
-                        ultimoDia
-                    );
-
-            }
-
-
-            proximos.push({
-
-                compromiso:item,
-
-                fecha:
-                    new Date(
-                        año,
-                        mes,
-                        dia
-                    )
-
-            });
-
-        }
-    );
-
-
-    proximos.sort(
-        function(a,b){
-            return a.fecha-b.fecha;
-        }
-    );
-
-
-    const proximo=
-        proximos[0];
-
-
-    const diferencia=
-        proximo.fecha-
-        ahora;
-
-
-    const diasFaltantes=
-        Math.ceil(
-            diferencia/
-            (1000*60*60*24)
-        );
-
-
-    contenedor.innerHTML=
-
-        "<div class='proximo'>"+
-
-            "<div>🔔 PRÓXIMO VENCIMIENTO</div>"+
-
-            "<br>"+
-
-            "<strong>"+
-                obtenerTipoCompromiso(
-                    proximo.compromiso.tipo
-                )+
-                " "+
-                proximo.compromiso.nombre+
-            "</strong>"+
-
-            "<div style='margin-top:7px'>"+
-                dinero(
-                    proximo.compromiso.monto
-                )+
-                " · Día "+
-                proximo.compromiso.dia+
-            "</div>"+
-
-            "<div style='margin-top:7px'>"+
-                (
-                    diasFaltantes<=0
-                    ?
-                    "⚠️ Vence hoy"
-                    :
-                    "⏳ Faltan "+
-                    diasFaltantes+
-                    " días"
-                )+
-            "</div>"+
-
-        "</div>";
-
+  const cont=$("proximoVencimiento");
+  cont.innerHTML="";
+  const pend=datos.compromisos.filter(i=>i.estado==="pendiente");
+  if(!pend.length)return;
+  const hoy=new Date(),hoy0=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+  const prox=pend.map(c=>{
+    let m=hoy.getMonth(),a=hoy.getFullYear();
+    let d=Math.min(c.dia,new Date(a,m+1,0).getDate());
+    if(d<hoy.getDate()){
+      m++;if(m>11){m=0;a++;}
+      d=Math.min(c.dia,new Date(a,m+1,0).getDate());
+    }
+    return{c:c,fecha:new Date(a,m,d)};
+  }).sort((x,y)=>x.fecha-y.fecha)[0];
+  const dias=Math.round((prox.fecha-hoy0)/864e5);
+  cont.innerHTML=`<div class="proximo"><div>🔔 PRÓXIMO VENCIMIENTO</div><br>
+<strong>${icono(prox.c.tipo)} ${esc(prox.c.nombre)}</strong>
+<div style="margin-top:7px">${dinero(prox.c.monto)} · Día ${esc(prox.c.dia)}</div>
+<div style="margin-top:7px">${dias<=0?"⚠️ Vence hoy":"⏳ Faltan "+dias+(dias===1?" día":" días")}</div></div>`;
 }
 
-
-/* =========================
-   TARJETA
-========================= */
-
+/* ===== TARJETA ===== */
 function registrarCompraTarjeta(){
-
-    const nombre=
-        document.getElementById(
-            "tarjetaCompraNombre"
-        ).value.trim();
-
-
-    const monto=
-        Number(
-            document.getElementById(
-                "tarjetaCompraMonto"
-            ).value
-        )||0;
-
-
-    const cuotas=
-        Number(
-            document.getElementById(
-                "tarjetaCompraCuotas"
-            ).value
-        )||1;
-
-
-    const cuotaActual=
-        Number(
-            document.getElementById(
-                "tarjetaCompraCuotaActual"
-            ).value
-        )||1;
-
-
-    const dia=
-        Number(
-            document.getElementById(
-                "tarjetaCompraDia"
-            ).value
-        )||20;
-
-
-    if(!nombre){
-
-        alert(
-            "Escribe el nombre de la compra."
-        );
-
-        return;
-
-    }
-
-
-    if(monto<=0){
-
-        alert(
-            "Ingresa un monto válido."
-        );
-
-        return;
-
-    }
-
-
-    if(dia<1||dia>31){
-
-        alert(
-            "El día de vencimiento debe estar entre 1 y 31."
-        );
-
-        return;
-
-    }
-
-
-    if(cuotaActual>cuotas){
-
-        alert(
-            "La cuota actual no puede superar el número de cuotas."
-        );
-
-        return;
-
-    }
-
-
-    const deudaNueva=
-        redondear(
-            datos.deudaTarjeta+
-            monto
-        );
-
-
-    if(
-        deudaNueva>
-        datos.limiteTarjeta
-    ){
-
-        alert(
-            "La compra supera el crédito disponible de tu tarjeta."
-        );
-
-        return;
-
-    }
-
-
-    const valorCuota=
-        redondear(
-            monto/cuotas
-        );
-
-
-    datos.deudaTarjeta=
-        deudaNueva;
-
-
-    datos.comprasTarjeta.push({
-
-        id:Date.now(),
-
-        nombre:nombre,
-
-        montoTotal:
-            redondear(monto),
-
-        cuotas:cuotas,
-
-        cuotaActual:cuotaActual,
-
-        valorCuota:valorCuota,
-
-        diaVencimiento:dia,
-
-        estado:"pendiente",
-
-        fecha:
-            new Date().toLocaleString(
-                "es-PE"
-            )
-
-    });
-
-
-    guardarDatos();
-
-
-    document.getElementById(
-        "tarjetaCompraNombre"
-    ).value="";
-
-
-    document.getElementById(
-        "tarjetaCompraMonto"
-    ).value="";
-
-
-    document.getElementById(
-        "tarjetaCompraCuotas"
-    ).value="1";
-
-
-    document.getElementById(
-        "tarjetaCompraCuotaActual"
-    ).value="1";
-
-
-    document.getElementById(
-        "tarjetaCompraDia"
-    ).value="20";
-
-
-    actualizar();
-
-
-    alert(
-        "💳 Compra registrada correctamente."
-    );
-
+  const nombre=$("tarjetaCompraNombre").value.trim(),monto=num("tarjetaCompraMonto"),cuotas=num("tarjetaCompraCuotas")||1,
+  cuotaActual=num("tarjetaCompraCuotaActual")||1,dia=num("tarjetaCompraDia")||20;
+  if(!nombre)return alert("Escribe el nombre de la compra.");
+  if(monto<=0)return alert("Ingresa un monto válido.");
+  if(dia<1||dia>31)return alert("El día de vencimiento debe estar entre 1 y 31.");
+  if(cuotaActual>cuotas)return alert("La cuota actual no puede superar el número de cuotas.");
+  const valorCuota=redondear(monto/cuotas);
+  const cuotasPagadas=Math.max(0,cuotaActual-1);
+  const pendiente=redondear(monto-valorCuota*cuotasPagadas);
+  const deudaNueva=redondear(datos.deudaTarjeta+pendiente);
+  if(deudaNueva>datos.limiteTarjeta)return alert("La compra supera el crédito disponible de tu tarjeta.");
+  datos.deudaTarjeta=deudaNueva;
+  datos.comprasTarjeta.push({id:Date.now(),nombre,montoTotal:redondear(monto),cuotas,cuotaActual,valorCuota,diaVencimiento:dia,estado:"pendiente",fecha:ahora()});
+  guardarDatos();
+  $("tarjetaCompraNombre").value="";$("tarjetaCompraMonto").value="";
+  $("tarjetaCompraCuotas").value="1";$("tarjetaCompraCuotaActual").value="1";$("tarjetaCompraDia").value="20";
+  actualizar();alert("💳 Compra registrada correctamente.");
 }
-
 
 function mostrarComprasTarjeta(){
-
-    const lista=
-        document.getElementById(
-            "listaComprasTarjeta"
-        );
-
-
-    lista.innerHTML="";
-
-
-    if(
-        datos.comprasTarjeta.length===0
-    ){
-
-        lista.innerHTML=
-            "<div class='vacio'>"+
-            "No tienes compras en cuotas registradas."+
-            "</div>";
-
-        return;
-
-    }
-
-
-    datos.comprasTarjeta.forEach(
-        function(compra){
-
-            const cuotasRestantes=
-                Math.max(
-                    0,
-                    compra.cuotas-
-                    compra.cuotaActual+
-                    1
-                );
-
-
-            const dia=
-                compra.diaVencimiento||
-                20;
-
-
-            const elemento=
-                document.createElement(
-                    "div"
-                );
-
-
-            elemento.className=
-                "compromiso"+
-                (
-                    compra.estado==="pagado"
-                    ?" pagado"
-                    :""
-                );
-
-
-            elemento.innerHTML=
-
-                "<div class='compromiso-cabecera'>"+
-
-                    "<div>"+
-
-                        "<div class='compromiso-titulo'>"+
-                            "💳 "+
-                            compra.nombre+
-                        "</div>"+
-
-                        "<span class='badge badge-tarjeta'>"+
-                            (
-                                compra.estado==="pagado"
-                                ?
-                                "✅ TERMINADA"
-                                :
-                                "Cuota "+
-                                compra.cuotaActual+
-                                " de "+
-                                compra.cuotas
-                            )+
-                        "</span>"+
-
-                    "</div>"+
-
-                    "<div class='compromiso-monto purple'>"+
-                        dinero(
-                            compra.valorCuota
-                        )+
-                        "/cuota"+
-                    "</div>"+
-
-                "</div>"+
-
-
-                "<div class='compromiso-detalles'>"+
-
-                    "<div class='detalle'>"+
-                        "<small>Compra total</small>"+
-                        "<strong>"+
-                            dinero(
-                                compra.montoTotal
-                            )+
-                        "</strong>"+
-                    "</div>"+
-
-                    "<div class='detalle'>"+
-                        "<small>Cuotas restantes</small>"+
-                        "<strong>"+
-                            cuotasRestantes+
-                        "</strong>"+
-                    "</div>"+
-
-                    "<div class='detalle'>"+
-                        "<small>Vencimiento</small>"+
-                        "<strong>"+
-                            "Día "+
-                            dia+
-                        "</strong>"+
-                    "</div>"+
-
-                "</div>"+
-
-                (
-                    compra.estado!=="pagado"
-                    ?
-                    "<div class='actions'>"+
-
-                        "<button class='button green-button' onclick='pagarCuotaTarjeta("+
-                        compra.id+
-                        ")'>"+
-                        "💳 Pagar cuota"+
-                        "</button>"+
-
-                        "<button class='button red-button' onclick='eliminarCompraTarjeta("+
-                        compra.id+
-                        ")'>"+
-                        "Eliminar"+
-                        "</button>"+
-
-                    "</div>"
-                    :
-                    "<div class='actions'>"+
-
-                        "<button class='button red-button' onclick='eliminarCompraTarjeta("+
-                        compra.id+
-                        ")'>"+
-                        "Eliminar"+
-                        "</button>"+
-
-                    "</div>"
-                );
-
-
-            lista.appendChild(elemento);
-
-        }
-    );
-
+  const l=$("listaComprasTarjeta");
+  if(!datos.comprasTarjeta.length){l.innerHTML=vacio("No tienes compras en cuotas registradas.");return;}
+  l.innerHTML=datos.comprasTarjeta.map(c=>{
+    const p=c.estado==="pagado";
+    const rest=Math.max(0,c.cuotas-c.cuotaActual+1);
+    return `<div class="compromiso${p?" pagado":""}">
+<div class="compromiso-cabecera"><div>
+<div class="compromiso-titulo">💳 ${esc(c.nombre)}</div>
+<span class="badge badge-tarjeta">${p?"✅ TERMINADA":"Cuota "+c.cuotaActual+" de "+c.cuotas}</span>
+</div><div class="compromiso-monto purple">${dinero(c.valorCuota)}/cuota</div></div>
+<div class="compromiso-detalles">
+<div class="detalle"><small>Compra total</small><strong>${dinero(c.montoTotal)}</strong></div>
+<div class="detalle"><small>Cuotas restantes</small><strong>${p?0:rest}</strong></div>
+<div class="detalle"><small>Vencimiento</small><strong>Día ${c.diaVencimiento||20}</strong></div>
+</div>
+<div class="actions">
+${p?"":`<button class="button green-button" onclick="pagarCuotaTarjeta(${c.id})">💳 Pagar cuota</button>`}
+<button class="button red-button" onclick="eliminarCompraTarjeta(${c.id})">Eliminar</button>
+</div></div>`;
+  }).join("");
 }
-
 
 function pagarCuotaTarjeta(id){
-
-    const compra=
-        datos.comprasTarjeta.find(
-            function(item){
-                return item.id===id;
-            }
-        );
-
-
-    if(!compra)
-        return;
-
-
-    if(
-        compra.cuotaActual>
-        compra.cuotas
-    ){
-
-        alert(
-            "Esta compra ya terminó."
-        );
-
-        return;
-
-    }
-
-
-    const monto=
-        redondear(
-            compra.valorCuota
-        );
-
-
-    if(monto>datos.saldo){
-
-        alert(
-            "No tienes suficiente dinero en cuenta para pagar esta cuota."
-        );
-
-        return;
-
-    }
-
-
-    const confirmar=
-        confirm(
-            "¿Pagar cuota de "+
-            dinero(monto)+
-            " de "+
-            compra.nombre+
-            "?\n\n"+
-            "Vencimiento: día "+
-            (compra.diaVencimiento||20)
-        );
-
-
-    if(!confirmar)
-        return;
-
-
-    datos.saldo=
-        redondear(
-            datos.saldo-
-            monto
-        );
-
-
-    datos.deudaTarjeta=
-        Math.max(
-            0,
-            redondear(
-                datos.deudaTarjeta-
-                monto
-            )
-        );
-
-
-    if(
-        compra.cuotaActual>=
-        compra.cuotas
-    ){
-
-        compra.estado="pagado";
-
-        compra.fechaPago=
-            new Date().toLocaleString(
-                "es-PE"
-            );
-
-        alert(
-            "✅ Última cuota pagada. Compra terminada."
-        );
-
-    }else{
-
-        compra.cuotaActual++;
-
-        alert(
-            "✅ Cuota pagada. Siguiente cuota: "+
-            compra.cuotaActual+
-            " de "+
-            compra.cuotas
-        );
-
-    }
-
-
-    guardarDatos();
-
-    actualizar();
-
+  const c=datos.comprasTarjeta.find(i=>i.id===id);
+  if(!c)return;
+  if(c.cuotaActual>c.cuotas)return alert("Esta compra ya terminó.");
+  const monto=redondear(c.valorCuota);
+  if(monto>datos.saldo)return alert("No tienes suficiente dinero en cuenta para pagar esta cuota.");
+  if(!confirm("¿Pagar cuota de "+dinero(monto)+" de "+c.nombre+"?\n\nVencimiento: día "+(c.diaVencimiento||20)))return;
+  datos.saldo=redondear(datos.saldo-monto);
+  datos.deudaTarjeta=Math.max(0,redondear(datos.deudaTarjeta-monto));
+  datos.movimientos.push({concepto:"Cuota tarjeta: "+c.nombre,monto:monto,signo:"−",clase:"red",tipo:"pagoTarjeta",fecha:ahora()});
+  if(c.cuotaActual>=c.cuotas){
+    c.estado="pagado";c.fechaPago=ahora();
+    alert("✅ Última cuota pagada. Compra terminada.");
+  }else{
+    c.cuotaActual++;
+    alert("✅ Cuota pagada. Siguiente cuota: "+c.cuotaActual+" de "+c.cuotas);
+  }
+  guardarDatos();actualizar();
 }
-
 
 function eliminarCompraTarjeta(id){
-
-    const compra=
-        datos.comprasTarjeta.find(
-            function(item){
-                return item.id===id;
-            }
-        );
-
-
-    if(!compra)
-        return;
-
-
-    if(
-        !confirm(
-            "¿Eliminar esta compra registrada?"
-        )
-    )
-        return;
-
-
-    /*
-       Si todavía queda deuda de esta compra,
-       se resta solamente lo que falta pagar.
-    */
-
-    if(compra.estado!=="pagado"){
-
-        const cuotasPagadas=
-            Math.max(
-                0,
-                compra.cuotaActual-1
-            );
-
-
-        const pagado=
-            redondear(
-                compra.valorCuota*
-                cuotasPagadas
-            );
-
-
-        const pendiente=
-            Math.max(
-                0,
-                redondear(
-                    compra.montoTotal-
-                    pagado
-                )
-            );
-
-
-        datos.deudaTarjeta=
-            Math.max(
-                0,
-                redondear(
-                    datos.deudaTarjeta-
-                    pendiente
-                )
-            );
-
-    }
-
-
-    datos.comprasTarjeta=
-        datos.comprasTarjeta.filter(
-            function(item){
-                return item.id!==id;
-            }
-        );
-
-
-    guardarDatos();
-
-    actualizar();
-
+  const c=datos.comprasTarjeta.find(i=>i.id===id);
+  if(!c)return;
+  if(!confirm("¿Eliminar esta compra registrada?"))return;
+  if(c.estado!=="pagado"){
+    const pagado=redondear(c.valorCuota*Math.max(0,c.cuotaActual-1));
+    const pendiente=Math.max(0,redondear(c.montoTotal-pagado));
+    datos.deudaTarjeta=Math.max(0,redondear(datos.deudaTarjeta-pendiente));
+  }
+  datos.comprasTarjeta=datos.comprasTarjeta.filter(i=>i.id!==id);
+  guardarDatos();actualizar();
 }
 
-
-/* =========================
-   MOVIMIENTOS
-========================= */
-
+/* ===== MOVIMIENTOS ===== */
 function registrarMovimiento(){
-
-    const tipo=
-        document.getElementById(
-            "tipoMovimiento"
-        ).value;
-
-
-    const monto=
-        Number(
-            document.getElementById(
-                "montoMovimiento"
-            ).value
-        )||0;
-
-
-    const concepto=
-        document.getElementById(
-            "conceptoMovimiento"
-        ).value.trim();
-
-
-    if(monto<=0){
-
-        alert(
-            "Ingresa un monto válido."
-        );
-
-        return;
-
-    }
-
-
-    if(!concepto){
-
-        alert(
-            "Escribe el concepto."
-        );
-
-        return;
-
-    }
-
-
-    let signo="+";
-    let clase="green";
-
-
-    if(tipo==="ingreso"){
-
-        datos.saldo=
-            redondear(
-                datos.saldo+
-                monto
-            );
-
-        signo="+";
-        clase="green";
-
-    }
-
-
-    else if(tipo==="gasto"){
-
-        if(monto>datos.saldo){
-
-            alert(
-                "No tienes suficiente dinero en cuenta."
-            );
-
-            return;
-
-        }
-
-        datos.saldo=
-            redondear(
-                datos.saldo-
-                monto
-            );
-
-        signo="−";
-        clase="red";
-
-    }
-
-
-    else if(tipo==="pago"){
-
-        if(monto>datos.saldo){
-
-            alert(
-                "No tienes suficiente dinero en cuenta."
-            );
-
-            return;
-
-        }
-
-        datos.saldo=
-            redondear(
-                datos.saldo-
-                monto
-            );
-
-        signo="−";
-        clase="red";
-
-    }
-
-
-    else if(tipo==="pagoTarjeta"){
-
-        if(monto>datos.saldo){
-
-            alert(
-                "No tienes suficiente dinero en cuenta."
-            );
-
-            return;
-
-        }
-
-
-        if(monto>datos.deudaTarjeta){
-
-            alert(
-                "El pago supera la deuda actual de la tarjeta."
-            );
-
-            return;
-
-        }
-
-
-        datos.saldo=
-            redondear(
-                datos.saldo-
-                monto
-            );
-
-
-        datos.deudaTarjeta=
-            redondear(
-                datos.deudaTarjeta-
-                monto
-            );
-
-
-        signo="−";
-        clase="red";
-
-    }
-
-
-    else if(tipo==="reserva"){
-
-        if(monto>datos.saldo){
-
-            alert(
-                "No tienes suficiente dinero en cuenta."
-            );
-
-            return;
-
-        }
-
-
-        datos.saldo=
-            redondear(
-                datos.saldo-
-                monto
-            );
-
-
-        datos.reservado=
-            redondear(
-                datos.reservado+
-                monto
-            );
-
-
-        signo="↗";
-        clase="blue";
-
-    }
-
-
-    else if(tipo==="retiroReserva"){
-
-        if(monto>datos.reservado){
-
-            alert(
-                "No tienes suficiente dinero reservado."
-            );
-
-            return;
-
-        }
-
-
-        datos.reservado=
-            redondear(
-                datos.reservado-
-                monto
-            );
-
-
-        datos.saldo=
-            redondear(
-                datos.saldo+
-                monto
-            );
-
-
-        signo="↩";
-        clase="green";
-
-    }
-
-
-    datos.movimientos.push({
-
-        concepto:concepto,
-
-        monto:
-            redondear(monto),
-
-        signo:signo,
-
-        clase:clase,
-
-        tipo:tipo,
-
-        fecha:
-            new Date().toLocaleString(
-                "es-PE"
-            )
-
-    });
-
-
-    guardarDatos();
-
-
-    document.getElementById(
-        "montoMovimiento"
-    ).value="";
-
-
-    document.getElementById(
-        "conceptoMovimiento"
-    ).value="";
-
-
-    actualizar();
-
+  const tipo=$("tipoMovimiento").value,monto=num("montoMovimiento"),concepto=$("conceptoMovimiento").value.trim();
+  if(monto<=0)return alert("Ingresa un monto válido.");
+  if(!concepto)return alert("Escribe el concepto.");
+  let signo="−",clase="red";
+  if(tipo==="ingreso"){
+    datos.saldo=redondear(datos.saldo+monto);signo="+";clase="green";
+  }else if(tipo==="gasto"||tipo==="pago"){
+    if(monto>datos.saldo)return alert("No tienes suficiente dinero en cuenta.");
+    datos.saldo=redondear(datos.saldo-monto);
+  }else if(tipo==="pagoTarjeta"){
+    if(monto>datos.saldo)return alert("No tienes suficiente dinero en cuenta.");
+    if(monto>datos.deudaTarjeta)return alert("El pago supera la deuda actual de la tarjeta.");
+    datos.saldo=redondear(datos.saldo-monto);
+    datos.deudaTarjeta=redondear(datos.deudaTarjeta-monto);
+  }else if(tipo==="reserva"){
+    if(monto>datos.saldo)return alert("No tienes suficiente dinero en cuenta.");
+    datos.saldo=redondear(datos.saldo-monto);
+    datos.reservado=redondear(datos.reservado+monto);
+    signo="↗";clase="blue";
+  }else if(tipo==="retiroReserva"){
+    if(monto>datos.reservado)return alert("No tienes suficiente dinero reservado.");
+    datos.reservado=redondear(datos.reservado-monto);
+    datos.saldo=redondear(datos.saldo+monto);
+    signo="↩";clase="green";
+  }
+  datos.movimientos.push({concepto,monto:redondear(monto),signo,clase,tipo,fecha:ahora()});
+  guardarDatos();
+  $("montoMovimiento").value="";$("conceptoMovimiento").value="";
+  actualizar();
 }
-
 
 function mostrarMovimientos(){
-
-    const lista=
-        document.getElementById(
-            "listaMovimientos"
-        );
-
-
-    lista.innerHTML="";
-
-
-    if(
-        datos.movimientos.length===0
-    ){
-
-        lista.innerHTML=
-            "<div class='vacio'>"+
-            "No hay movimientos registrados."+
-            "</div>";
-
-        return;
-
-    }
-
-
-    datos.movimientos
-        .slice()
-        .reverse()
-        .forEach(
-            function(mov){
-
-                const elemento=
-                    document.createElement(
-                        "div"
-                    );
-
-
-                elemento.className=
-                    "movimiento";
-
-
-                const concepto=
-                    mov.concepto||
-                    mov.nombre||
-                    mov.descripcion||
-                    mov.tipo||
-                    "Movimiento";
-
-
-                const monto=
-                    Number(
-                        mov.monto
-                    )||0;
-
-
-                const signo=
-                    mov.signo||
-                    (
-                        mov.tipo==="ingreso"
-                        ?"+"
-                        :"−"
-                    );
-
-
-                const clase=
-                    mov.clase||
-                    (
-                        signo==="+"||
-                        signo==="↗"||
-                        signo==="↩"
-                        ?"green"
-                        :"red"
-                    );
-
-
-                const fecha=
-                    mov.fecha||
-                    "Fecha no disponible";
-
-
-                elemento.innerHTML=
-
-                    "<div>"+
-
-                        "<strong>"+
-                            concepto+
-                        "</strong>"+
-
-                        "<div class='fecha'>"+
-                            fecha+
-                        "</div>"+
-
-                    "</div>"+
-
-                    "<strong class='"+clase+"'>"+
-                        signo+
-                        dinero(monto)+
-                    "</strong>";
-
-
-                lista.appendChild(
-                    elemento
-                );
-
-            }
-        );
-
+  const l=$("listaMovimientos");
+  if(!datos.movimientos.length){l.innerHTML=vacio("No hay movimientos registrados.");return;}
+  l.innerHTML=datos.movimientos.slice().reverse().map(m=>
+    `<div class="movimiento"><div><strong>${esc(m.concepto)}</strong><div class="fecha">${esc(m.fecha)}</div></div>
+<strong class="${esc(m.clase)}">${esc(m.signo)}${dinero(m.monto)}</strong></div>`
+  ).join("");
 }
 
+/* ===== CALENDARIO LABORAL ===== */
+const MULT={normal:1,falta:0,medio:.5,doble:2,triple:3,descanso:0,vacaciones:0,
+feriado1:1,feriado2:2,feriado3:3,domingo1:1,domingo2:2,domingo3:3};
+const mult=e=>(MULT[e]===undefined?1:MULT[e]);
+const claveDia=(mes,dia)=>mes+"_"+dia;
+const estadoDia=dia=>{const d=datos.laboral.dias[claveDia(datos.laboral.mes,dia)]||datos.laboral.dias[dia];return(d&&d.estado)||"normal";};
 
-/* =========================
-   CALENDARIO LABORAL
-========================= */
+const OPCIONES=[["normal","🟢 Normal"],["falta","🔴 Falta"],["medio","🟡 Medio día"],["doble","🟣 Pago doble"],
+["triple","🟠 Pago triple"],["descanso","⚪ Descanso"],["vacaciones","🏖️ Vacaciones"],
+["feriado1","🎉 Feriado ×1"],["feriado2","🎉 Feriado ×2"],["feriado3","🎉 Feriado ×3"],
+["domingo1","🔵 Domingo ×1"],["domingo2","🔵 Domingo ×2"],["domingo3","🔵 Domingo ×3"]];
 
-function obtenerClaveDia(mes,dia){
-
-    return mes+"_"+dia;
-
+function diasDelMes(){
+  const p=datos.laboral.mes.split("-");
+  return{anio:Number(p[0]),mes:Number(p[1]),dias:new Date(Number(p[0]),Number(p[1]),0).getDate()};
 }
-
 
 function generarCalendario(){
-
-    const mes=
-        document.getElementById(
-            "mesLaboral"
-        ).value;
-
-
-    const sueldo=
-        Number(
-            document.getElementById(
-                "sueldoMensual"
-            ).value
-        )||0;
-
-
-    if(!mes){
-
-        alert(
-            "Selecciona el mes."
-        );
-
-        return;
-
-    }
-
-
-    if(sueldo<=0){
-
-        alert(
-            "Ingresa el sueldo mensual."
-        );
-
-        return;
-
-    }
-
-
-    datos.laboral.mes=mes;
-
-    datos.laboral.sueldo=
-        redondear(sueldo);
-
-
-    guardarDatos();
-
-    mostrarCalendario();
-
-    actualizarResultadoFinal();
-
-    actualizar();
-
+  const mes=$("mesLaboral").value,sueldo=num("sueldoMensual");
+  if(!mes)return alert("Selecciona el mes.");
+  if(sueldo<=0)return alert("Ingresa el sueldo mensual.");
+  datos.laboral.mes=mes;
+  datos.laboral.sueldo=redondear(sueldo);
+  guardarDatos();mostrarCalendario();actualizarResultadoFinal();actualizar();
 }
-
 
 function prepararOctubre(){
-
-    datos.laboral.mes="2026-10";
-
-    if(!datos.laboral.sueldo){
-
-        const sueldo=
-            Number(
-                document.getElementById(
-                    "configSueldo"
-                ).value
-            )||0;
-
-        if(sueldo>0){
-
-            datos.laboral.sueldo=
-                sueldo;
-
-        }
-
-    }
-
-
-    document.getElementById(
-        "mesLaboral"
-    ).value=
-        "2026-10";
-
-
-    document.getElementById(
-        "sueldoMensual"
-    ).value=
-        datos.laboral.sueldo||"";
-
-
-    guardarDatos();
-
-
-    if(datos.laboral.sueldo>0){
-
-        mostrarCalendario();
-
-        actualizarResultadoFinal();
-
-    }
-
-
-    actualizar();
-
-
-    alert(
-        "🍂 Octubre 2026 está listo como nuevo mes laboral."
-    );
-
+  datos.laboral.mes="2026-10";
+  if(!datos.laboral.sueldo){const s=num("configSueldo");if(s>0)datos.laboral.sueldo=s;}
+  $("mesLaboral").value="2026-10";
+  $("sueldoMensual").value=datos.laboral.sueldo||"";
+  guardarDatos();
+  if(datos.laboral.sueldo>0){mostrarCalendario();actualizarResultadoFinal();}
+  actualizar();
+  alert("🍂 Octubre 2026 está listo como nuevo mes laboral.");
 }
 
+function claseEstado(e){
+  if(e==="normal"||e==="domingo1")return"estado-normal";
+  if(e==="falta")return"estado-falta";
+  if(e==="medio")return"estado-medio";
+  if(e==="doble"||e==="domingo2")return"estado-doble";
+  if(e==="triple"||e==="domingo3")return"estado-triple";
+  if(e==="vacaciones")return"estado-vacaciones";
+  if(e.indexOf("feriado")===0)return"estado-feriado";
+  return"estado-descanso";
+}
 
 function mostrarCalendario(){
-
-    if(
-        !datos.laboral.mes||
-        !datos.laboral.sueldo
-    )
-        return;
-
-
-    const partes=
-        datos.laboral.mes.split("-");
-
-
-    const año=
-        Number(partes[0]);
-
-
-    const mes=
-        Number(partes[1]);
-
-
-    const diasDelMes=
-        new Date(
-            año,
-            mes,
-            0
-        ).getDate();
-
-
-    const valorDiario=
-        datos.laboral.sueldo/
-        diasDelMes;
-
-
-    document.getElementById(
-        "mesLaboral"
-    ).value=
-        datos.laboral.mes;
-
-
-    document.getElementById(
-        "sueldoMensual"
-    ).value=
-        datos.laboral.sueldo;
-
-
-    document.getElementById(
-        "valorDiario"
-    ).textContent=
-        dinero(valorDiario);
-
-
-    const calendario=
-        document.getElementById(
-            "calendarioLaboral"
-        );
-
-
-    calendario.innerHTML="";
-
-
-    const nombres=[
-        "Lun",
-        "Mar",
-        "Mié",
-        "Jue",
-        "Vie",
-        "Sáb",
-        "Dom"
-    ];
-
-
-    const encabezado=
-        document.createElement(
-            "div"
-        );
-
-
-    encabezado.className=
-        "calendario";
-
-
-    nombres.forEach(
-        function(nombre){
-
-            const elemento=
-                document.createElement(
-                    "div"
-                );
-
-            elemento.className=
-                "nombre-dia";
-
-            elemento.textContent=
-                nombre;
-
-            encabezado.appendChild(
-                elemento
-            );
-
-        }
-    );
-
-
-    calendario.appendChild(
-        encabezado
-    );
-
-
-    const primerFecha=
-        new Date(
-            año,
-            mes-1,
-            1
-        );
-
-
-    let primerDia=
-        primerFecha.getDay();
-
-
-    primerDia=
-        primerDia===0
-        ?6
-        :primerDia-1;
-
-
-    const diasGrid=
-        document.createElement(
-            "div"
-        );
-
-
-    diasGrid.className=
-        "calendario";
-
-
-    for(
-        let i=0;
-        i<primerDia;
-        i++
-    ){
-
-        const vacio=
-            document.createElement(
-                "div"
-            );
-
-        vacio.className=
-            "dia-vacio";
-
-        diasGrid.appendChild(
-            vacio
-        );
-
-    }
-
-
-    for(
-        let dia=1;
-        dia<=diasDelMes;
-        dia++
-    ){
-
-        crearDia(
-            diasGrid,
-            dia,
-            año,
-            mes,
-            valorDiario
-        );
-
-    }
-
-
-    calendario.appendChild(
-        diasGrid
-    );
-
-
-    actualizarResumenLaboral();
-
+  if(!datos.laboral.mes||!datos.laboral.sueldo)return;
+  const f=diasDelMes(),valorDiario=datos.laboral.sueldo/f.dias;
+  $("mesLaboral").value=datos.laboral.mes;
+  $("sueldoMensual").value=datos.laboral.sueldo;
+  const cal=$("calendarioLaboral");
+  cal.innerHTML="";
+  const enc=document.createElement("div");enc.className="calendario";
+  ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].forEach(n=>{
+    const e=document.createElement("div");e.className="nombre-dia";e.textContent=n;enc.appendChild(e);
+  });
+  cal.appendChild(enc);
+  let primero=new Date(f.anio,f.mes-1,1).getDay();
+  primero=primero===0?6:primero-1;
+  const grid=document.createElement("div");grid.className="calendario";
+  for(let i=0;i<primero;i++){const v=document.createElement("div");v.className="dia-vacio";grid.appendChild(v);}
+  for(let d=1;d<=f.dias;d++)crearDia(grid,d,f.anio,f.mes,valorDiario);
+  cal.appendChild(grid);
+  actualizarResumenLaboral();
 }
 
-
-function crearDia(
-    contenedor,
-    dia,
-    año,
-    mes,
-    valorDiario
-){
-
-    const elemento=
-        document.createElement(
-            "div"
-        );
-
-
-    const fecha=
-        new Date(
-            año,
-            mes-1,
-            dia
-        );
-
-
-    const diaSemana=
-        fecha.getDay();
-
-
-    const finDeSemana=
-        diaSemana===0||
-        diaSemana===6;
-
-
-    const clave=
-        obtenerClaveDia(
-            datos.laboral.mes,
-            dia
-        );
-
-
-    const datosDia=
-        datos.laboral.dias[clave]||
-        datos.laboral.dias[dia]||
-        {estado:"normal"};
-
-
-    elemento.className=
-        "dia"+
-        (
-            finDeSemana
-            ?" fin-de-semana"
-            :""
-        );
-
-
-    const numero=
-        document.createElement(
-            "div"
-        );
-
-
-    numero.className=
-        "dia-numero";
-
-
-    numero.textContent=
-        dia+
-        (
-            finDeSemana
-            ?" •"
-            :""
-        );
-
-
-    elemento.appendChild(
-        numero
-    );
-
-
-    const selector=
-        document.createElement(
-            "select"
-        );
-
-
-    const opciones=[
-
-        ["normal","🟢 Normal"],
-        ["falta","🔴 Falta"],
-        ["medio","🟡 Medio día"],
-        ["doble","🟣 Pago doble"],
-        ["triple","🟠 Pago triple"],
-        ["descanso","⚪ Descanso"],
-        ["vacaciones","🏖️ Vacaciones"],
-        ["feriado1","🎉 Feriado ×1"],
-        ["feriado2","🎉 Feriado ×2"],
-        ["feriado3","🎉 Feriado ×3"],
-        ["domingo1","🔵 Domingo ×1"],
-        ["domingo2","🔵 Domingo ×2"],
-        ["domingo3","🔵 Domingo ×3"]
-
-    ];
-
-
-    opciones.forEach(
-        function(opcion){
-
-            const option=
-                document.createElement(
-                    "option"
-                );
-
-            option.value=
-                opcion[0];
-
-            option.textContent=
-                opcion[1];
-
-            selector.appendChild(
-                option
-            );
-
-        }
-    );
-
-
-    selector.value=
-        datosDia.estado||
-        "normal";
-
-
-    const resultado=
-        document.createElement(
-            "div"
-        );
-
-
-    resultado.className=
-        "dia-resultado";
-
-
-    function actualizarDia(){
-
-        const estado=
-            selector.value;
-
-
-        datos.laboral.dias[clave]={
-            estado:estado
-        };
-
-
-        guardarDatos();
-
-
-        aplicarEstiloDia(
-            elemento,
-            estado
-        );
-
-
-        resultado.textContent=
-            dinero(
-                valorDiario*
-                obtenerMultiplicador(
-                    estado
-                )
-            );
-
-
-        actualizarResumenLaboral();
-
-        actualizarResultadoFinal();
-
-    }
-
-
-    selector.onchange=
-        actualizarDia;
-
-
-    elemento.appendChild(
-        selector
-    );
-
-
-    resultado.textContent=
-        dinero(
-            valorDiario*
-            obtenerMultiplicador(
-                selector.value
-            )
-        );
-
-
-    elemento.appendChild(
-        resultado
-    );
-
-
-    aplicarEstiloDia(
-        elemento,
-        selector.value
-    );
-
-
-    contenedor.appendChild(
-        elemento
-    );
-
+function crearDia(cont,dia,anio,mes,valorDiario){
+  const el=document.createElement("div");
+  const ds=new Date(anio,mes-1,dia).getDay();
+  const finde=(ds===0||ds===6);
+  const clave=claveDia(datos.laboral.mes,dia);
+  el.className="dia"+(finde?" fin-de-semana":"");
+  const n=document.createElement("div");n.className="dia-numero";n.textContent=dia+(finde?" •":"");
+  el.appendChild(n);
+  const sel=document.createElement("select");
+  OPCIONES.forEach(o=>{const op=document.createElement("option");op.value=o[0];op.textContent=o[1];sel.appendChild(op);});
+  sel.value=estadoDia(dia);
+  const res=document.createElement("div");res.className="dia-resultado";
+  const pintar=()=>{
+    el.className="dia"+(finde?" fin-de-semana":"")+" "+claseEstado(sel.value);
+    res.textContent=dinero(valorDiario*mult(sel.value));
+  };
+  sel.onchange=()=>{
+    datos.laboral.dias[clave]={estado:sel.value};
+    guardarDatos();pintar();actualizarResumenLaboral();actualizarResultadoFinal();
+  };
+  el.appendChild(sel);el.appendChild(res);
+  pintar();
+  cont.appendChild(el);
 }
 
-
-function obtenerMultiplicador(estado){
-
-    switch(estado){
-
-        case "normal":
-            return 1;
-
-        case "falta":
-            return 0;
-
-        case "medio":
-            return .5;
-
-        case "doble":
-            return 2;
-
-        case "triple":
-            return 3;
-
-        case "descanso":
-            return 0;
-
-        case "vacaciones":
-            return 0;
-
-        case "feriado1":
-            return 1;
-
-        case "feriado2":
-            return 2;
-
-        case "feriado3":
-            return 3;
-
-        case "domingo1":
-            return 1;
-
-        case "domingo2":
-            return 2;
-
-        case "domingo3":
-            return 3;
-
-        default:
-            return 1;
-
-    }
-
+function calcularLaboral(){
+  const r={total:0,normales:0,faltas:0,medios:0,dobles:0,triples:0,valorDiario:0};
+  if(!datos.laboral.mes||!datos.laboral.sueldo)return r;
+  const f=diasDelMes();
+  r.valorDiario=datos.laboral.sueldo/f.dias;
+  for(let d=1;d<=f.dias;d++){
+    const e=estadoDia(d);
+    r.total+=r.valorDiario*mult(e);
+    if(e==="normal")r.normales++;
+    if(e==="falta")r.faltas++;
+    if(e==="medio")r.medios++;
+    if(e==="doble"||e==="domingo2"||e==="feriado2")r.dobles++;
+    if(e==="triple"||e==="domingo3"||e==="feriado3")r.triples++;
+  }
+  r.total=redondear(r.total);
+  return r;
 }
-
-
-function aplicarEstiloDia(
-    elemento,
-    estado
-){
-
-    elemento.classList.remove(
-        "estado-normal",
-        "estado-falta",
-        "estado-medio",
-        "estado-doble",
-        "estado-triple",
-        "estado-descanso",
-        "estado-vacaciones",
-        "estado-feriado"
-    );
-
-
-    if(estado==="normal")
-        elemento.classList.add(
-            "estado-normal"
-        );
-
-    else if(estado==="falta")
-        elemento.classList.add(
-            "estado-falta"
-        );
-
-    else if(estado==="medio")
-        elemento.classList.add(
-            "estado-medio"
-        );
-
-    else if(
-        estado==="doble"||
-        estado==="domingo2"
-    )
-        elemento.classList.add(
-            "estado-doble"
-        );
-
-    else if(
-        estado==="triple"||
-        estado==="domingo3"
-    )
-        elemento.classList.add(
-            "estado-triple"
-        );
-
-    else if(
-        estado==="vacaciones"
-    )
-        elemento.classList.add(
-            "estado-vacaciones"
-        );
-
-    else if(
-        estado.indexOf("feriado")===0
-    )
-        elemento.classList.add(
-            "estado-feriado"
-        );
-
-    else
-        elemento.classList.add(
-            "estado-descanso"
-        );
-
-}
-
 
 function actualizarResumenLaboral(){
-
-    if(
-        !datos.laboral.mes||
-        !datos.laboral.sueldo
-    )
-        return;
-
-
-    const partes=
-        datos.laboral.mes.split("-");
-
-
-    const año=
-        Number(partes[0]);
-
-
-    const mes=
-        Number(partes[1]);
-
-
-    const diasDelMes=
-        new Date(
-            año,
-            mes,
-            0
-        ).getDate();
-
-
-    const valorDiario=
-        datos.laboral.sueldo/
-        diasDelMes;
-
-
-    let total=0;
-
-    let normales=0;
-    let faltas=0;
-    let medios=0;
-    let dobles=0;
-    let triples=0;
-
-
-    for(
-        let dia=1;
-        dia<=diasDelMes;
-        dia++
-    ){
-
-        const clave=
-            obtenerClaveDia(
-                datos.laboral.mes,
-                dia
-            );
-
-
-        const diaData=
-            datos.laboral.dias[clave]||
-            datos.laboral.dias[dia]||
-            {estado:"normal"};
-
-
-        const estado=
-            diaData.estado||
-            "normal";
-
-
-        total+=
-            valorDiario*
-            obtenerMultiplicador(
-                estado
-            );
-
-
-        if(estado==="normal")
-            normales++;
-
-
-        if(estado==="falta")
-            faltas++;
-
-
-        if(estado==="medio")
-            medios++;
-
-
-        if(
-            estado==="doble"||
-            estado==="domingo2"||
-            estado==="feriado2"
-        )
-            dobles++;
-
-
-        if(
-            estado==="triple"||
-            estado==="domingo3"||
-            estado==="feriado3"
-        )
-            triples++;
-
-    }
-
-
-    document.getElementById(
-        "valorDiario"
-    ).textContent=
-        dinero(valorDiario);
-
-
-    document.getElementById(
-        "totalDiasLaboral"
-    ).textContent=
-        dinero(total);
-
-
-    document.getElementById(
-        "diasNormales"
-    ).textContent=
-        normales;
-
-
-    document.getElementById(
-        "faltas"
-    ).textContent=
-        faltas;
-
-
-    document.getElementById(
-        "mediosDias"
-    ).textContent=
-        medios;
-
-
-    document.getElementById(
-        "diasDobles"
-    ).textContent=
-        dobles;
-
-
-    document.getElementById(
-        "diasTriples"
-    ).textContent=
-        triples;
-
+  if(!datos.laboral.mes||!datos.laboral.sueldo)return;
+  const r=calcularLaboral();
+  setTxt("valorDiario",dinero(r.valorDiario));
+  setTxt("totalDiasLaboral",dinero(r.total));
+  setTxt("diasNormales",r.normales);
+  setTxt("faltas",r.faltas);
+  setTxt("mediosDias",r.medios);
+  setTxt("diasDobles",r.dobles);
+  setTxt("diasTriples",r.triples);
 }
 
+const sumar=arr=>redondear(arr.reduce((s,x)=>s+(Number(x.monto)||0),0));
+const calcularSueldoLaboral=()=>calcularLaboral().total;
 
-/* =========================
-   BONOS
-========================= */
-
+/* ===== BONOS Y DESCUENTOS ===== */
 function agregarExtra(){
-
-    const concepto=
-        document.getElementById(
-            "extraConcepto"
-        ).value.trim();
-
-
-    const monto=
-        Number(
-            document.getElementById(
-                "extraMonto"
-            ).value
-        )||0;
-
-
-    const tipo=
-        document.getElementById(
-            "extraTipo"
-        ).value;
-
-
-    if(!concepto){
-
-        alert(
-            "Escribe el concepto."
-        );
-
-        return;
-
-    }
-
-
-    if(monto<=0){
-
-        alert(
-            "Ingresa un monto válido."
-        );
-
-        return;
-
-    }
-
-
-    datos.laboral.extras.push({
-
-        concepto:concepto,
-
-        monto:
-            redondear(monto),
-
-        tipo:tipo
-
-    });
-
-
-    guardarDatos();
-
-
-    document.getElementById(
-        "extraConcepto"
-    ).value="";
-
-
-    document.getElementById(
-        "extraMonto"
-    ).value="";
-
-
-    actualizarResultadoFinal();
-
-    mostrarExtrasInicio();
-
+  const concepto=$("extraConcepto").value.trim(),monto=num("extraMonto"),tipo=$("extraTipo").value;
+  if(!concepto)return alert("Escribe el concepto.");
+  if(monto<=0)return alert("Ingresa un monto válido.");
+  datos.laboral.extras.push({concepto,monto:redondear(monto),tipo});
+  guardarDatos();
+  $("extraConcepto").value="";$("extraMonto").value="";
+  actualizarResultadoFinal();mostrarExtras();
 }
-
-
-function mostrarExtrasInicio(){
-
-    const lista=
-        document.getElementById(
-            "listaExtras"
-        );
-
-
-    if(!lista)
-        return;
-
-
-    lista.innerHTML="";
-
-
-    if(
-        datos.laboral.extras.length===0
-    ){
-
-        lista.innerHTML=
-            "<div class='vacio'>"+
-            "No hay bonos ni ingresos adicionales."+
-            "</div>";
-
-        return;
-
-    }
-
-
-    datos.laboral.extras.forEach(
-        function(extra,index){
-
-            const elemento=
-                document.createElement(
-                    "div"
-                );
-
-
-            elemento.className=
-                "movimiento";
-
-
-            elemento.innerHTML=
-
-                "<div>"+
-                    "<strong>"+
-                        "🎁 "+
-                        extra.concepto+
-                    "</strong>"+
-                "</div>"+
-
-                "<div style='display:flex;gap:10px;align-items:center'>"+
-                    "<strong class='green'>"+
-                        "+ "+
-                        dinero(extra.monto)+
-                    "</strong>"+
-
-                    "<button class='button red-button' style='padding:8px 10px' onclick='eliminarExtra("+
-                        index+
-                    ")'>"+
-                        "Eliminar"+
-                    "</button>"+
-                "</div>";
-
-
-            lista.appendChild(
-                elemento
-            );
-
-        }
-    );
-
-}
-
-
-function eliminarExtra(index){
-
-    if(
-        !confirm(
-            "¿Eliminar este ingreso adicional?"
-        )
-    )
-        return;
-
-
-    datos.laboral.extras.splice(
-        index,
-        1
-    );
-
-
-    guardarDatos();
-
-    actualizarResultadoFinal();
-
-    mostrarExtrasInicio();
-
-}
-
-
-/* =========================
-   DESCUENTOS
-========================= */
 
 function agregarDescuento(){
-
-    const concepto=
-        document.getElementById(
-            "descuentoConcepto"
-        ).value.trim();
-
-
-    const monto=
-        Number(
-            document.getElementById(
-                "descuentoMonto"
-            ).value
-        )||0;
-
-
-    if(!concepto){
-
-        alert(
-            "Escribe el concepto."
-        );
-
-        return;
-
-    }
-
-
-    if(monto<=0){
-
-        alert(
-            "Ingresa un monto válido."
-        );
-
-        return;
-
-    }
-
-
-    datos.laboral.descuentos.push({
-
-        concepto:concepto,
-
-        monto:
-            redondear(monto)
-
-    });
-
-
-    guardarDatos();
-
-
-    document.getElementById(
-        "descuentoConcepto"
-    ).value="";
-
-
-    document.getElementById(
-        "descuentoMonto"
-    ).value="";
-
-
-    actualizarResultadoFinal();
-
-    mostrarDescuentosInicio();
-
+  const concepto=$("descuentoConcepto").value.trim(),monto=num("descuentoMonto");
+  if(!concepto)return alert("Escribe el concepto.");
+  if(monto<=0)return alert("Ingresa un monto válido.");
+  datos.laboral.descuentos.push({concepto,monto:redondear(monto)});
+  guardarDatos();
+  $("descuentoConcepto").value="";$("descuentoMonto").value="";
+  actualizarResultadoFinal();mostrarDescuentos();
 }
 
-
-function mostrarDescuentosInicio(){
-
-    const lista=
-        document.getElementById(
-            "listaDescuentos"
-        );
-
-
-    if(!lista)
-        return;
-
-
-    lista.innerHTML="";
-
-
-    if(
-        datos.laboral.descuentos.length===0
-    ){
-
-        lista.innerHTML=
-            "<div class='vacio'>"+
-            "No hay descuentos registrados."+
-            "</div>";
-
-        return;
-
-    }
-
-
-    datos.laboral.descuentos.forEach(
-        function(descuento,index){
-
-            const elemento=
-                document.createElement(
-                    "div"
-                );
-
-
-            elemento.className=
-                "movimiento";
-
-
-            elemento.innerHTML=
-
-                "<div>"+
-                    "<strong>"+
-                        "➖ "+
-                        descuento.concepto+
-                    "</strong>"+
-                "</div>"+
-
-                "<div style='display:flex;gap:10px;align-items:center'>"+
-
-                    "<strong class='red'>"+
-                        "− "+
-                        dinero(
-                            descuento.monto
-                        )+
-                    "</strong>"+
-
-                    "<button class='button red-button' style='padding:8px 10px' onclick='eliminarDescuento("+
-                        index+
-                    ")'>"+
-                        "Eliminar"+
-                    "</button>"+
-
-                "</div>";
-
-
-            lista.appendChild(
-                elemento
-            );
-
-        }
-    );
-
+function listaItems(id,arr,vacioTxt,ico,clase,signo,fnEliminar){
+  const l=$(id);
+  if(!arr.length){l.innerHTML=vacio(vacioTxt);return;}
+  l.innerHTML=arr.map((x,i)=>
+    `<div class="movimiento"><div><strong>${ico} ${esc(x.concepto)}</strong></div>
+<div style="display:flex;gap:10px;align-items:center"><strong class="${clase}">${signo} ${dinero(x.monto)}</strong>
+<button class="button red-button" style="padding:8px 10px" onclick="${fnEliminar}(${i})">Eliminar</button></div></div>`
+  ).join("");
 }
 
+const mostrarExtras=()=>listaItems("listaExtras",datos.laboral.extras,"No hay bonos ni ingresos adicionales.","🎁","green","+","eliminarExtra");
+const mostrarDescuentos=()=>listaItems("listaDescuentos",datos.laboral.descuentos,"No hay descuentos registrados.","➖","red","−","eliminarDescuento");
 
-function eliminarDescuento(index){
-
-    if(
-        !confirm(
-            "¿Eliminar este descuento?"
-        )
-    )
-        return;
-
-
-    datos.laboral.descuentos.splice(
-        index,
-        1
-    );
-
-
-    guardarDatos();
-
-    actualizarResultadoFinal();
-
-    mostrarDescuentosInicio();
-
+function eliminarExtra(i){
+  if(!confirm("¿Eliminar este ingreso adicional?"))return;
+  datos.laboral.extras.splice(i,1);
+  guardarDatos();actualizarResultadoFinal();mostrarExtras();
 }
 
-
-/* =========================
-   RESULTADO LABORAL
-========================= */
-
-function calcularSueldoLaboral(){
-
-    if(
-        !datos.laboral.mes||
-        !datos.laboral.sueldo
-    )
-        return 0;
-
-
-    const partes=
-        datos.laboral.mes.split("-");
-
-
-    const año=
-        Number(partes[0]);
-
-
-    const mes=
-        Number(partes[1]);
-
-
-    const diasDelMes=
-        new Date(
-            año,
-            mes,
-            0
-        ).getDate();
-
-
-    const valorDiario=
-        datos.laboral.sueldo/
-        diasDelMes;
-
-
-    let total=0;
-
-
-    for(
-        let dia=1;
-        dia<=diasDelMes;
-        dia++
-    ){
-
-        const clave=
-            obtenerClaveDia(
-                datos.laboral.mes,
-                dia
-            );
-
-
-        const diaData=
-            datos.laboral.dias[clave]||
-            datos.laboral.dias[dia]||
-            {estado:"normal"};
-
-
-        total+=
-            valorDiario*
-            obtenerMultiplicador(
-                diaData.estado||
-                "normal"
-            );
-
-    }
-
-
-    return redondear(total);
-
+function eliminarDescuento(i){
+  if(!confirm("¿Eliminar este descuento?"))return;
+  datos.laboral.descuentos.splice(i,1);
+  guardarDatos();actualizarResultadoFinal();mostrarDescuentos();
 }
-
 
 function actualizarResultadoFinal(){
-
-    if(
-        !datos.laboral.mes||
-        !datos.laboral.sueldo
-    ){
-
-        document.getElementById(
-            "resultadoSueldo"
-        ).textContent=
-            "S/ 0.00";
-
-        document.getElementById(
-            "resultadoExtras"
-        ).textContent=
-            "S/ 0.00";
-
-        document.getElementById(
-            "resultadoDescuentos"
-        ).textContent=
-            "S/ 0.00";
-
-        document.getElementById(
-            "totalEstimado"
-        ).textContent=
-            "S/ 0.00";
-
-        return;
-
-    }
-
-
-    const sueldoCalculado=
-        calcularSueldoLaboral();
-
-
-    let extras=0;
-
-
-    datos.laboral.extras.forEach(
-        function(extra){
-
-            extras+=
-                Number(extra.monto)||0;
-
-        }
-    );
-
-
-    let descuentos=0;
-
-
-    datos.laboral.descuentos.forEach(
-        function(descuento){
-
-            descuentos+=
-                Number(
-                    descuento.monto
-                )||0;
-
-        }
-    );
-
-
-    extras=
-        redondear(extras);
-
-
-    descuentos=
-        redondear(descuentos);
-
-
-    const total=
-        redondear(
-            sueldoCalculado+
-            extras-
-            descuentos
-        );
-
-
-    document.getElementById(
-        "resultadoSueldo"
-    ).textContent=
-        dinero(sueldoCalculado);
-
-
-    document.getElementById(
-        "resultadoExtras"
-    ).textContent=
-        dinero(extras);
-
-
-    document.getElementById(
-        "resultadoDescuentos"
-    ).textContent=
-        dinero(descuentos);
-
-
-    document.getElementById(
-        "totalEstimado"
-    ).textContent=
-        dinero(total);
-
+  if(!datos.laboral.mes||!datos.laboral.sueldo){
+    ["resultadoSueldo","resultadoExtras","resultadoDescuentos","totalEstimado"].forEach(id=>setTxt(id,"S/ 0.00"));
+    return;
+  }
+  const sueldo=calcularSueldoLaboral(),extras=sumar(datos.laboral.extras),desc=sumar(datos.laboral.descuentos);
+  setTxt("resultadoSueldo",dinero(sueldo));
+  setTxt("resultadoExtras",dinero(extras));
+  setTxt("resultadoDescuentos",dinero(desc));
+  setTxt("totalEstimado",dinero(redondear(sueldo+extras-desc)));
 }
 
-
-/* =========================
-   HISTORIAL
-========================= */
-
+/* ===== HISTORIAL ===== */
 function mostrarHistorial(){
-
-    const lista=
-        document.getElementById(
-            "historialMensual"
-        );
-
-
-    if(!lista)
-        return;
-
-
-    lista.innerHTML="";
-
-
-    if(
-        datos.historial.length===0
-    ){
-
-        lista.innerHTML=
-            "<div class='vacio'>"+
-            "No hay meses guardados. Puedes empezar desde octubre."+
-            "</div>";
-
-        return;
-
-    }
-
-
-    datos.historial
-        .slice()
-        .reverse()
-        .forEach(
-            function(item,index){
-
-                const elemento=
-                    document.createElement(
-                        "div"
-                    );
-
-
-                elemento.className=
-                    "historial-item";
-
-
-                elemento.innerHTML=
-
-                    "<strong>📅 "+
-                        formatearMes(
-                            item.mes
-                        )+
-                    "</strong>"+
-
-                    "<div class='historial-total'>"+
-                        dinero(item.total)+
-                    "</div>"+
-
-                    "<div class='fecha'>"+
-                        (
-                            item.fechaCierre||
-                            ""
-                        )+
-                    "</div>";
-
-
-                lista.appendChild(
-                    elemento
-                );
-
-            }
-        );
-
+  const l=$("historialMensual");
+  if(!datos.historial.length){l.innerHTML=vacio("No hay meses guardados todavía.");return;}
+  l.innerHTML=datos.historial.slice().reverse().map(h=>
+    `<div class="historial-item"><strong>📅 ${esc(formatearMes(h.mes))}</strong>
+<div class="historial-total">${dinero(h.total)}</div><div class="fecha">${esc(h.fechaCierre||"")}</div></div>`
+  ).join("");
 }
 
-
-/*
-   ESTE BOTÓN SOLO BORRA EL HISTORIAL.
-
-   NO BORRA:
-   - saldo
-   - reservado
-   - tarjeta
-   - deuda
-   - compromisos
-   - compras
-   - movimientos
-   - sueldo
-   - calendario actual
-*/
+function cerrarMes(){
+  if(!datos.laboral.mes||!datos.laboral.sueldo)return alert("Primero genera el calendario del mes.");
+  const total=redondear(calcularSueldoLaboral()+sumar(datos.laboral.extras)-sumar(datos.laboral.descuentos));
+  if(!confirm("¿Guardar "+formatearMes(datos.laboral.mes)+" con total "+dinero(total)+"?\n\nSe limpiarán los bonos y descuentos para el próximo mes."))return;
+  datos.historial=datos.historial.filter(h=>h.mes!==datos.laboral.mes);
+  datos.historial.push({mes:datos.laboral.mes,total:total,fechaCierre:ahora()});
+  datos.laboral.extras=[];datos.laboral.descuentos=[];
+  guardarDatos();actualizar();actualizarResultadoFinal();
+}
 
 function borrarHistorialMensual(){
-
-    if(
-        datos.historial.length===0
-    ){
-
-        alert(
-            "No hay historial mensual para borrar."
-        );
-
-        return;
-
-    }
-
-
-    const confirmar=
-        confirm(
-            "⚠️ ¿Quieres borrar TODO el historial mensual?\n\n"+
-            "Esto NO borrará tu dinero, tarjeta, compromisos ni movimientos.\n\n"+
-            "Solo eliminará los meses guardados en 'Historial mensual'."
-        );
-
-
-    if(!confirmar)
-        return;
-
-
-    datos.historial=[];
-
-
-    guardarDatos();
-
-    mostrarHistorial();
-
-
-    alert(
-        "🗑️ Historial mensual eliminado.\n\n"+
-        "Tu información financiera sigue intacta."
-    );
-
+  if(!datos.historial.length)return alert("No hay historial mensual para borrar.");
+  if(!confirm("⚠️ ¿Quieres borrar TODO el historial mensual?\n\nEsto NO borrará tu dinero, tarjeta, compromisos ni movimientos."))return;
+  datos.historial=[];
+  guardarDatos();mostrarHistorial();
+  alert("🗑️ Historial mensual eliminado.\n\nTu información financiera sigue intacta.");
 }
 
-
-/* =========================
-   FECHAS
-========================= */
-
+/* ===== FECHAS ===== */
 function formatearMes(mes){
-
-    if(!mes)
-        return "";
-
-
-    const partes=
-        mes.split("-");
-
-
-    const fecha=
-        new Date(
-            Number(partes[0]),
-            Number(partes[1])-1,
-            1
-        );
-
-
-    return fecha.toLocaleDateString(
-        "es-PE",
-        {
-            month:"long",
-            year:"numeric"
-        }
-    );
-
+  if(!mes)return"";
+  const p=mes.split("-");
+  return new Date(Number(p[0]),Number(p[1])-1,1).toLocaleDateString("es-PE",{month:"long",year:"numeric"});
 }
 
-
-function formatearFecha(fecha){
-
-    if(!fecha)
-        return "";
-
-
-    const partes=
-        fecha.split("-");
-
-
-    if(partes.length!==3)
-        return fecha;
-
-
-    return partes[2]+
-        "/"+
-        partes[1]+
-        "/"+
-        partes[0];
-
+function formatearFecha(f){
+  if(!f)return"";
+  const p=f.split("-");
+  return p.length!==3?f:p[2]+"/"+p[1]+"/"+p[0];
 }
 
-
-/* =========================
-   INICIO
-========================= */
-
-cargarDatos();
-
-cargarConfiguracion();
-
-actualizar();
-
-mostrarHistorial();
-
-
-if(
-    datos.laboral.mes&&
-    datos.laboral.sueldo
-){
-
-    mostrarCalendario();
-
-    actualizarResultadoFinal();
-
+/* ===== LOGIN Y ARRANQUE ===== */
+function mostrarLogin(){
+  $("pantallaLogin").style.display="block";
+  $("appPrincipal").style.display="none";
 }
 
+async function iniciarApp(user){
+  usuarioId=user.id;
+  const{data,error}=await sb.from("finanzas").select("datos").eq("user_id",usuarioId).maybeSingle();
+  if(error)console.error("Error al leer la nube:",error);
+  let nube=(data&&data.datos&&Object.keys(data.datos).length)?data.datos:null;
+  if(!nube&&!error){
+    // Primera vez: rescata lo que ya tenías guardado en este navegador
+    try{const viejo=localStorage.getItem("asistenteFinanciero");if(viejo)nube=JSON.parse(viejo);}catch(e){}
+  }
+  cargarDatos(nube);
+  cargarConfiguracion();
+  actualizar();
+  if(datos.laboral.mes&&datos.laboral.sueldo){mostrarCalendario();actualizarResultadoFinal();}
+  $("pantallaLogin").style.display="none";
+  $("appPrincipal").style.display="block";
+}
+
+async function iniciarSesion(){
+  const email=$("loginEmail").value.trim(),password=$("loginPass").value;
+  const{data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error)return alert("Error: "+error.message);
+  iniciarApp(data.user);
+}
+
+async function registrarse(){
+  const email=$("loginEmail").value.trim(),password=$("loginPass").value;
+  const{data,error}=await sb.auth.signUp({email,password});
+  if(error)return alert("Error: "+error.message);
+  if(data.session)iniciarApp(data.user);
+  else alert("Revisa tu correo para confirmar la cuenta y luego inicia sesión.");
+}
+
+async function cerrarSesion(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+sb.auth.getSession().then(function(res){
+  if(res.data.session)iniciarApp(res.data.session.user);
+  else mostrarLogin();
+});
 </script>
-
 </body>
 </html>
