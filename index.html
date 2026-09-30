@@ -173,6 +173,8 @@ nav button.on{color:#2563eb;font-weight:bold}
 <button class="b og" onclick="salir()">🚪 Cerrar sesión</button>
 <button class="b rd" onclick="borrarCuenta()">🗑️ Borrar mi cuenta y mis datos</button>
 <button class="b sc" onclick="borrarHis()">Borrar meses guardados</button></div>
+<div class="c"><h2>🧹 Empezar de cero</h2><p class="l">Borra tus montos, movimientos, pagos, compras, calendario y meses guardados. Tu cuenta se mantiene.</p>
+<button class="b rd" onclick="reiniciar()">🧹 Dejar todo en cero</button></div>
 </section>
 
 </main>
@@ -398,6 +400,12 @@ function cerrarMes(){
   datos.historial=datos.historial.filter(h=>h.mes!==L.mes);
   datos.historial.push({mes:L.mes,total:tot,fechaCierre:ahora()});
   L.extras=[];L.descuentos=[];guardar();render();toast("✅ Mes guardado");
+}
+function reiniciar(){
+  if(!confirm("Se borrarán TODOS tus movimientos, pagos, compras, calendario y montos. Tu cuenta se mantiene. ¿Continuar?"))return;
+  if(prompt("Escribe EMPEZAR para confirmar")!=="EMPEZAR")return;
+  try{localStorage.removeItem("asistenteFinanciero")}catch(e){}
+  cargar(null);ajustesForm();initLab();guardar();render();tab("inicio");toast("✅ Todo quedó en cero");
 }
 function borrarHis(){if(!datos.historial.length)return toast("No hay meses guardados");if(!confirm("¿Borrar los meses guardados? Tu dinero no se toca."))return;datos.historial=[];guardar();render()}
 function mesTxt(m){const p=String(m||"").split("-");return p.length<2?"":new Date(+p[0],+p[1]-1,1).toLocaleDateString("es-PE",{month:"long",year:"numeric"})}
