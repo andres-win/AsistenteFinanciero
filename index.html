@@ -111,6 +111,18 @@ input,select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px
 <button class="button" onclick="iniciarSesion()">Entrar</button>
 <button class="button secondary" onclick="registrarse()">Crear cuenta</button>
 </div>
+<p style="margin-top:16px"><a href="#" onclick="recuperarClave();return false" style="color:#2563eb;font-weight:bold">¿Olvidaste tu contraseña?</a></p>
+</div>
+</div>
+
+<div id="pantallaNuevaClave" class="app" style="display:none">
+<header><h1>💰 Asistente Financiero</h1><p>Crea tu nueva contraseña.</p></header>
+<div class="section">
+<h2>🔑 Nueva contraseña</h2>
+<label>Nueva contraseña (mínimo 6 caracteres)</label><input id="nuevaClave" type="password" autocomplete="new-password">
+<br><br>
+<label>Repite la nueva contraseña</label><input id="nuevaClave2" type="password" autocomplete="new-password">
+<div class="actions"><button class="button" onclick="guardarNuevaClave()">Guardar nueva contraseña</button></div>
 </div>
 </div>
 
@@ -877,9 +889,39 @@ function formatearFecha(f){
 }
 
 /* ===== LOGIN Y ARRANQUE ===== */
+let enRecuperacion=/type=recovery/.test(location.hash);
+
 function mostrarLogin(){
   $("pantallaLogin").style.display="block";
+  $("pantallaNuevaClave").style.display="none";
   $("appPrincipal").style.display="none";
+}
+
+function mostrarNuevaClave(){
+  $("pantallaLogin").style.display="none";
+  $("appPrincipal").style.display="none";
+  $("pantallaNuevaClave").style.display="block";
+}
+
+async function recuperarClave(){
+  const email=$("loginEmail").value.trim();
+  if(!email)return alert("Escribe tu correo en el cuadro de arriba y vuelve a presionar '¿Olvidaste tu contraseña?'.");
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error)return alert("Error: "+error.message);
+  alert("Si ese correo tiene cuenta, te enviamos un enlace para crear una nueva contraseña. Revisa también la carpeta de Spam.");
+}
+
+async function guardarNuevaClave(){
+  const a=$("nuevaClave").value,b=$("nuevaClave2").value;
+  if(a.length<6)return alert("La contraseña debe tener mínimo 6 caracteres.");
+  if(a!==b)return alert("Las contraseñas no coinciden.");
+  const{error}=await sb.auth.updateUser({password:a});
+  if(error)return alert("Error: "+error.message);
+  alert("✅ Contraseña cambiada correctamente.");
+  enRecuperacion=false;
+  history.replaceState(null,"",location.pathname);
+  const{data}=await sb.auth.getSession();
+  if(data.session)iniciarApp(data.session.user);else mostrarLogin();
 }
 
 async function iniciarApp(user){
@@ -896,6 +938,7 @@ async function iniciarApp(user){
   actualizar();
   if(datos.laboral.mes&&datos.laboral.sueldo){mostrarCalendario();actualizarResultadoFinal();}
   $("pantallaLogin").style.display="none";
+  $("pantallaNuevaClave").style.display="none";
   $("appPrincipal").style.display="block";
 }
 
@@ -919,7 +962,12 @@ async function cerrarSesion(){
   location.reload();
 }
 
+sb.auth.onAuthStateChange(function(ev){
+  if(ev==="PASSWORD_RECOVERY"){enRecuperacion=true;mostrarNuevaClave();}
+});
+
 sb.auth.getSession().then(function(res){
+  if(enRecuperacion){mostrarNuevaClave();return;}
   if(res.data.session)iniciarApp(res.data.session.user);
   else mostrarLogin();
 });
