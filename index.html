@@ -149,6 +149,8 @@ nav button.on{color:#2563eb;font-weight:bold}
 <div class="g1"><div><label>Mes</label><input id="lbM" type="month" onchange="setLab()"></div>
 <div><label>Sueldo mensual</label><input id="lbS" type="number" inputmode="decimal" min="0" step="0.01" onchange="setLab()"></div></div>
 <label class="ck"><input id="lbD" type="checkbox" onchange="setLab()">Descanso y vacaciones son pagados</label>
+<label class="ck"><input id="lcA" type="checkbox" onchange="setCambio()">Mi sueldo cambia este mes</label>
+<div id="lcB" style="display:none" class="g2"><div><label>Último día con el sueldo actual</label><input id="lcD" type="number" inputmode="numeric" min="1" max="30" onchange="setCambio()"></div><div><label>Sueldo nuevo (desde el día siguiente)</label><input id="lcN" type="number" inputmode="decimal" min="0" step="0.01" onchange="setCambio()"></div></div>
 <p class="l">Cada día vale sueldo ÷ días del mes. Si tus descansos ya vienen incluidos en tu sueldo, marca la casilla.</p></div>
 <div class="g2" style="margin-bottom:12px">
 <div class="k"><small>Valor diario</small><b class="blue" id="lVd"></b></div>
@@ -372,15 +374,34 @@ const ESTADOS=[["normal","🟢 Normal",1],["falta","🔴 Falta",0],["medio","�
 const NORM={feriado1:"normal",domingo1:"normal",feriado2:"doble",domingo2:"doble",feriado3:"triple",domingo3:"triple"};
 const est=d=>{const L=datos.laboral,x=L.dias[L.mes+"_"+d]||L.dias[d];const e=(x&&x.estado)||"normal";return NORM[e]||e};
 const mult=e=>{if((e==="descanso"||e==="vacaciones")&&datos.laboral.descansoPagado)return 1;const x=ESTADOS.find(s=>s[0]===e);return x?x[2]:1};
-function initLab(){const L=datos.laboral;if(!L.mes)L.mes=mesKey();$("lbM").value=L.mes;$("lbS").value=L.sueldo||"";$("lbD").checked=!!L.descansoPagado}
-function setLab(){const L=datos.laboral;L.mes=$("lbM").value||L.mes;L.sueldo=red(num("lbS"));L.descansoPagado=$("lbD").checked;guardar();render()}
+function initLab(){const L=datos.laboral;if(!L.mes)L.mes=mesKey();$("lbM").value=L.mes;$("lbS").value=L.sueldo||"";$("lbD").checked=!!L.descansoPagado;syncCambio()}
+function setLab(){const L=datos.laboral;L.mes=$("lbM").value||L.mes;L.sueldo=red(num("lbS"));L.descansoPagado=$("lbD").checked;syncCambio();guardar();render()}
 function setDia(d,v){const L=datos.laboral;L.dias[L.mes+"_"+d]={estado:v};guardar();render()}
+function valDia(d){
+  const L=datos.laboral,p=L.mes.split("-").map(Number),n=new Date(p[0],p[1],0).getDate(),c=L.cambio;
+  return(c&&c.mes===L.mes&&c.dia>=1&&c.dia<n&&c.nuevo>0&&d>c.dia?c.nuevo:L.sueldo)/n;
+}
+function syncCambio(){
+  const L=datos.laboral,c=(L.cambio&&L.cambio.mes===L.mes)?L.cambio:null;
+  $("lcA").checked=!!c;$("lcB").style.display=c?"grid":"none";$("lcD").value=c?c.dia:"";$("lcN").value=c?c.nuevo:"";
+}
+function setCambio(){
+  const L=datos.laboral,a=$("lcA").checked;
+  $("lcB").style.display=a?"grid":"none";
+  if(a){
+    const p=L.mes.split("-").map(Number),n=new Date(p[0],p[1],0).getDate(),d=Math.floor(num("lcD"));
+    if(d&&(d<1||d>=n))toast("El último día debe estar entre 1 y "+(n-1),"err");
+    L.cambio={mes:L.mes,dia:d,nuevo:red(num("lcN"))};
+  }else L.cambio=null;
+  guardar();render();
+}
 function calc(){
   const L=datos.laboral,r={vd:0,total:0};
   if(!L.mes||!L.sueldo)return r;
   const p=L.mes.split("-").map(Number),n=new Date(p[0],p[1],0).getDate();
   r.vd=L.sueldo/n;
-  for(let d=1;d<=n;d++)r.total+=r.vd*mult(est(d));
+  {const c=L.cambio;if(c&&c.mes===L.mes&&c.dia>=1&&c.dia<n&&c.nuevo>0){r.vd2=c.nuevo/n;r.dd=c.dia}}
+  for(let d=1;d<=n;d++)r.total+=valDia(d)*mult(est(d));
   r.total=red(r.total);return r;
 }
 const suma=a=>red(a.reduce((s,x)=>s+(Number(x.monto)||0),0));
@@ -392,7 +413,7 @@ function calHTML(){
   for(let d=1;d<=n;d++){
     const e=est(d),w=[0,6].includes(new Date(p[0],p[1]-1,d).getDay());
     h+="<div class='dia e-"+e+"'><b>"+d+(w?" •":"")+"</b><select onchange='setDia("+d+",this.value)'>"+
-    ESTADOS.map(s=>"<option value='"+s[0]+"'"+(s[0]===e?" selected":"")+">"+s[1]+"</option>").join("")+"</select><small>"+dinero(vd*mult(e))+"</small></div>";
+    ESTADOS.map(s=>"<option value='"+s[0]+"'"+(s[0]===e?" selected":"")+">"+s[1]+"</option>").join("")+"</select><small>"+dinero(valDia(d)*mult(e))+"</small></div>";
   }
   return "<div class='cal'>"+h+"</div>";
 }
@@ -531,7 +552,7 @@ function render(){
     (fin?"<span class='bd ok'>✅</span>":p?"<button class='b sm gn' onclick=\"pagar('c',"+c.id+")\">Pagar cuota</button>":"<span class='bd ok'>✅ Pagada</span>")+
     "<button class='b sm sc' onclick=\"editar('c',"+c.id+")\">✏️</button><button class='b sm rd' onclick=\"elim('c',"+c.id+")\">✕</button></div></div>"}).join(""):vac("No tienes compras en cuotas.");
   const cl=calc(),ex=suma(datos.laboral.extras),de=suma(datos.laboral.descuentos);
-  st("lVd",dinero(cl.vd));st("lTc",dinero(cl.total));$("lCal").innerHTML=calHTML();
+  $("lVd").innerHTML=cl.vd2?dinero(cl.vd)+"<br><small style='font-size:12px'>desde el día "+(cl.dd+1)+": "+dinero(cl.vd2)+"</small>":dinero(cl.vd);st("lTc",dinero(cl.total));$("lCal").innerHTML=calHTML();
   const B=datos.laboral.extras.map((x,i)=>({x,i,t:"e"})).concat(datos.laboral.descuentos.map((x,i)=>({x,i,t:"d"})));
   $("lBon").innerHTML=B.length?B.map(b=>"<div class='it'><b>"+(b.t==="e"?"🎁 ":"➖ ")+esc(b.x.concepto)+"</b><div class='r'><b class='"+(b.t==="e"?"green'>+":"red'>−")+" "+dinero(b.x.monto)+"</b><button class='b sm rd' onclick=\"elimBono('"+b.t+"',"+b.i+")\">✕</button></div></div>").join(""):"";
   st("rEx",dinero(ex));st("rDe",dinero(de));st("rTo",dinero(datos.laboral.sueldo?red(cl.total+ex-de):0));
