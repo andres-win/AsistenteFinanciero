@@ -61,7 +61,7 @@ nav button{flex:1;border:0;background:none;padding:9px 0;font-size:11px;color:#6
 nav button.on{color:#2563eb;font-weight:bold}
 #toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#17202a;color:#fff;padding:11px 18px;border-radius:22px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90%;text-align:center}
 #toast.show{opacity:1}#toast.err{background:#dc2626}
-#guia{position:fixed;top:0;left:0;right:0;bottom:0;background:#f3f6fa;z-index:20;overflow:auto;display:none;padding-top:env(safe-area-inset-top,0px)}
+#guia,#todos{position:fixed;top:0;left:0;right:0;bottom:0;background:#f3f6fa;z-index:20;overflow:auto;display:none;padding-top:env(safe-area-inset-top,0px)}
 #guia p{margin-bottom:8px}
 @media(max-width:420px){.dia{min-height:74px}.dia select{font-size:8px}}
 </style>
@@ -111,7 +111,7 @@ nav button.on{color:#2563eb;font-weight:bold}
 <button class="b sc" onclick="rapido('reserva')">→ A reserva</button>
 <button class="b sc" onclick="rapido('retiro')">← De reserva</button>
 </div></div>
-<div class="c"><h2>📋 Últimos movimientos</h2><div id="lMov"></div></div>
+<div class="c"><h2>📋 Últimos movimientos</h2><div id="lMov"></div><button class="b sc" onclick="verTodos()">Ver todos los movimientos</button></div>
 </section>
 
 <section id="t-pagos" class="tab">
@@ -199,6 +199,7 @@ nav button.on{color:#2563eb;font-weight:bold}
 </nav>
 </div>
 <div id="guia"><div class="w"><div class="c" id="guiaC"></div></div></div>
+<div id="todos"><div class="w"><div class="c"><h2>📋 Todos los movimientos</h2><label>Mes</label><select id="tdM" onchange="pintaTodos()"></select><div id="tdL" style="margin-top:8px"></div><button class="b" onclick="$('todos').style.display='none'">Cerrar</button></div></div></div>
 <div id="toast"></div>
 
 <script>
@@ -434,9 +435,14 @@ function cerrarMes(){
   if(!L.mes||!L.sueldo)return toast("Primero escribe tu sueldo","err");
   const tot=red(calc().total+suma(L.extras)-suma(L.descuentos));
   if(!confirm("¿Guardar "+mesTxt(L.mes)+" con total "+dinero(tot)+"?\n\nSe limpiarán los bonos y descuentos."))return;
+  
+  const ci=prompt("¿Con cuánto dinero cierras "+mesTxt(L.mes)+"? (cuenta + reservado)",red(datos.saldo+datos.reservado));
+  if(ci===null)return;
+  const cv=Number(String(ci).replace(",","."));
+  if(String(ci).trim()===""||isNaN(cv)||cv<0)return toast("Escribe un monto válido","err");
   datos.historial=datos.historial.filter(h=>h.mes!==L.mes);
-  datos.historial.push({mes:L.mes,total:tot,fechaCierre:ahora()});
-  L.extras=[];L.descuentos=[];guardar();render();toast("✅ Mes guardado");
+  datos.historial.push({mes:L.mes,total:tot,cierre:red(cv),fechaCierre:ahora()});
+  L.extras=[];L.descuentos=[];guardar();render();{const q=new Date(+L.mes.split("-")[0],+L.mes.split("-")[1],1).toLocaleDateString("es-PE",{month:"long"});toast("✅ Mes guardado. Empiezas "+q+" con "+dinero(red(cv)))}
 }
 function reiniciar(){
   if(!confirm("Se borrarán TODOS tus movimientos, pagos, compras, calendario y montos. Tu cuenta se mantiene. ¿Continuar?"))return;
@@ -518,24 +524,66 @@ function guiaSig(){
 }
 function guiaOmitir(){if(gi<GP-1){gi++;guiaPinta()}else guiaFin()}
 function guiaFin(){datos.guiaVista=true;guardar();$("guia").style.display="none";ajustesForm();initLab();render();tab("inicio")}
+function deshacer(t,id){
+  if(t==="p"){
+    const c=datos.compromisos.find(x=>x.id===id);if(!c)return;
+    if(!confirm("¿Volver «"+c.nombre+"» a pendiente?"+(c.descuenta?" Se devuelven "+dinero(c.monto)+" a tu cuenta.":"")))return;
+    if(c.descuenta){datos.saldo=red(datos.saldo+c.monto);mov("Deshacer pago: "+c.nombre,c.monto,"+","green","ingreso")}
+    if(c.repite==="una")c.terminado=false;
+    else if(c.repite==="mes")c.pagadoMes="";
+    else{c.cuotaActual=Math.max(1,c.cuotaActual-1);c.terminado=false;c.pagadoMes=""}
+  }else{
+    const c=datos.comprasTarjeta.find(x=>x.id===id);if(!c)return;
+    if(!confirm("¿Volver la cuota de «"+c.nombre+"» a pendiente? Se devuelven "+dinero(c.valorCuota)+" a tu cuenta y vuelven a la deuda."))return;
+    datos.saldo=red(datos.saldo+c.valorCuota);datos.deudaTarjeta=red(datos.deudaTarjeta+c.valorCuota);
+    mov("Deshacer cuota: "+c.nombre,c.valorCuota,"+","green","ingreso");
+    if(c.estado==="pagado")c.estado="pendiente";else c.cuotaActual=Math.max(1,c.cuotaActual-1);
+    c.pagadoMes="";
+  }
+  guardar();render();toast("↩ Quedó pendiente");
+}
+function editarCierre(i){
+  const h=datos.historial[i];if(!h)return;
+  const v=prompt("¿Con cuánto dinero cerraste "+mesTxt(h.mes)+"? (cuenta + reservado)",h.cierre!=null?h.cierre:"");if(v===null)return;
+  const n=Number(String(v).replace(",","."));
+  if(String(v).trim()===""||isNaN(n)||n<0)return toast("Escribe un monto válido","err");
+  h.cierre=red(n);guardar();render();toast("✅ Cierre actualizado");
+}
+function movMes(f){const r=/^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(f||""));return r?r[3]+"-"+r[2].padStart(2,"0"):"s"}
+function verTodos(){
+  const ks=new Set([mesKey()]);datos.movimientos.forEach(x=>ks.add(movMes(x.fecha)));
+  $("tdM").innerHTML=[...ks].sort().reverse().map(k=>"<option value='"+k+"'>"+(k==="s"?"Sin fecha":esc(mesTxt(k)))+"</option>").join("");
+  $("todos").style.display="block";pintaTodos();
+}
+function pintaTodos(){
+  const k=$("tdM").value,L=datos.movimientos.map((x,i)=>[x,i]).filter(([x])=>movMes(x.fecha)===k).reverse();
+  $("tdL").innerHTML=L.length?L.map(([x,i])=>"<div class='it'><div><b>"+esc(x.concepto)+"</b><small>"+esc(x.fecha)+"</small></div><div class='r'><b class='"+esc(x.clase)+"'>"+esc(x.signo)+dinero(x.monto)+"</b><button class='b sm rd' onclick='borrarMov("+i+")'>✕</button></div></div>").join(""):vac("No hay movimientos en este mes.");
+}
 function borrarHis(){if(!datos.historial.length)return toast("No hay meses guardados");if(!confirm("¿Borrar los meses guardados? Tu dinero no se toca."))return;datos.historial=[];guardar();render()}
 function mesTxt(m){const p=String(m||"").split("-");return p.length<2?"":new Date(+p[0],+p[1]-1,1).toLocaleDateString("es-PE",{month:"long",year:"numeric"})}
 
 /* ===== PINTAR PANTALLAS ===== */
 function render(){
   const m=mesKey(),P=pend(),hh=new Date().getHours();
-  $("sal").innerHTML="<b>"+(hh<12?"Buenos días":hh<19?"Buenas tardes":"Buenas noches")+" 👋</b><div class='l' style='margin:6px 0 0'>"+esc(frase())+"</div>";
+  const pd=new Date();pd.setDate(1);pd.setMonth(pd.getMonth()-1);
+  const pk=pd.getFullYear()+"-"+String(pd.getMonth()+1).padStart(2,"0"),ph=datos.historial.find(h=>h.mes===pk&&h.cierre!=null);
+  if($("todos").style.display==="block")pintaTodos();
+  $("sal").innerHTML="<b>"+(hh<12?"Buenos días":hh<19?"Buenas tardes":"Buenas noches")+" 👋</b><div class='l' style='margin:6px 0 0'>"+esc(frase())+"</div>"+(ph?"<div class='l' style='margin:6px 0 0'>📌 Empezaste "+new Date().toLocaleDateString("es-PE",{month:"long"})+" con "+dinero(ph.cierre)+"</div>":"");
   st("vSaldo",dinero(datos.saldo));st("vRes",dinero(datos.reservado));st("vDeu",dinero(datos.deudaTarjeta));
-  st("vDisp",dinero(red(datos.saldo-P.filter(x=>x.desc).reduce((s,x)=>s+x.m,0))));
-  const tt0=new Date(),hoy=tt0.getDate(),dr=new Date(tt0.getFullYear(),tt0.getMonth()+1,0).getDate()-hoy+1,dsp=red(datos.saldo-P.filter(x=>x.desc).reduce((s,x)=>s+x.m,0)),rt=datos.saldo>0?dsp/datos.saldo:0;
+  {const vq=red(datos.saldo-P.filter(x=>x.desc).reduce((q,x)=>q+x.m,0));st("vDisp",dinero(vq));$("vDisp").className=vq<0?"orange":"green"}
+  const tt0=new Date(),hoy=tt0.getDate(),dr=new Date(tt0.getFullYear(),tt0.getMonth()+1,0).getDate()-hoy+1,
+  su=a=>a.filter(x=>x.desc).reduce((q,x)=>q+x.m,0),
+  U=P.filter(x=>x.d-hoy<=3),C=P.filter(x=>x.d-hoy<=5),LJ=P.filter(x=>x.d-hoy>5),
+  dsU=red(datos.saldo-su(U)),dsp=red(datos.saldo-su(C)),rt=datos.saldo>0?dsp/datos.saldo:0,lej=su(LJ);
   let sv,sm;
-  if(!datos.saldo&&!datos.reservado&&!datos.limiteTarjeta&&!datos.movimientos.length&&!datos.compromisos.length&&!datos.comprasTarjeta.length){sv="#eff6ff;border:2px solid #bfdbfe;color:#1e3a8a";sm="👋 ¡Bienvenido! Para empezar, ve a Más → Mis datos y escribe cuánto dinero tienes. Después agrega tus pagos en la pestaña Pagos."}
-  else if(dsp<=0){sv="#fef2f2;border:2px solid #fecaca;color:#991b1b";sm="🔴 Ya no es recomendable gastar. Tu dinero libre es "+dinero(Math.max(0,dsp))+" y aún te faltan pagos."}
+  if(sinDatos()){sv="#eff6ff;border:2px solid #bfdbfe;color:#1e3a8a";sm="👋 ¡Bienvenido! Para empezar, ve a Más → Mis datos y escribe cuánto dinero tienes. Después agrega tus pagos en la pestaña Pagos."}
+  else if(dsU<=0){sv="#fef2f2;border:2px solid #fecaca;color:#991b1b";sm="🔴 Ya no es recomendable gastar. Tu dinero libre es "+dinero(Math.max(0,dsU))+(U.length?" y vencen pagos en los próximos días.":".")}
+  else if(dsp<=0){sv="#fffbeb;border:2px solid #fde68a;color:#92400e";sm="🟡 Atención: pronto vencen pagos por "+dinero(su(C))+" y tu dinero aún no alcanza."}
   else if(rt<.25){sv="#fffbeb;border:2px solid #fde68a;color:#92400e";sm="🟡 Cuidado: te quedan "+dinero(dsp)+" libres para "+dr+" día(s). Puedes gastar hasta "+dinero(dsp/dr)+" por día."}
   else{sv="#f0fdf4;border:2px solid #bbf7d0;color:#166534";sm="🟢 Vas bien. Tienes "+dinero(dsp)+" libres: hasta "+dinero(dsp/dr)+" por día hasta fin de mes."}
-  $("sem").innerHTML="<div class='px' style='background:"+sv+"'>"+sm+"<br><small>No cuenta dinero que aún no recibes.</small></div>";
+  $("sem").innerHTML="<div class='px' style='background:"+sv+"'>"+sm+(lej>0&&!sinDatos()?"<br><small>Más adelante: "+dinero(lej)+" en pagos que saldrán de tu sueldo.</small>":"")+"<br><small>No cuenta dinero que aún no recibes.</small></div>";
   $("prox").innerHTML=P.length?(()=>{const x=P.find(y=>y.d>=hoy)||P[0],f=x.d-hoy;
-    return "<div class='px'>🔔 <b>Próximo pago:</b> "+esc(x.n)+" · "+dinero(x.m)+"<br>"+
+    return "<div class='px' style='"+(f>5?"background:#eff6ff;border:2px solid #bfdbfe;color:#1e3a8a":"")+"'>🔔 <b>Próximo pago:</b> "+esc(x.n)+" · "+dinero(x.m)+"<br>"+
     (f<0?"⚠️ Vencido hace "+(-f)+" día(s)":f===0?"⚠️ Vence hoy":"Vence el día "+x.d+" (faltan "+f+")")+
     " · Pendientes este mes: "+P.length+"</div>"})():"";
   $("lMov").innerHTML=datos.movimientos.length?datos.movimientos.map((x,i)=>[x,i]).slice(-8).reverse().map(([x,i])=>
@@ -544,19 +592,19 @@ function render(){
     const p=!c.terminado&&c.pagadoMes!==m,rep=c.repite==="mes"?"Cada mes":c.repite==="cuotas"?"Cuota "+c.cuotaActual+" de "+c.cuotas:"Una vez";
     return "<div class='it'><div><b>"+esc(c.nombre)+"</b><small>"+(c.dia>=31?"Fin de mes":"Día "+esc(c.dia))+" · "+rep+"</small></div><div class='r'><b>"+dinero(c.monto)+"</b>"+
     (c.terminado?"<span class='bd ok'>✅ Terminado</span>":p?"<button class='b sm gn' onclick=\"pagar('p',"+c.id+")\">Pagar</button>":"<span class='bd ok'>✅ Pagado</span>")+
-    "<button class='b sm sc' onclick=\"editar('p',"+c.id+")\">✏️</button><button class='b sm rd' onclick=\"elim('p',"+c.id+")\">✕</button></div></div>"}).join(""):vac("Aún no tienes pagos. Agrega el primero arriba.");
+    (!p?"<button class='b sm sc' onclick=\"deshacer('p',"+c.id+")\">↩</button>":"")+"<button class='b sm sc' onclick=\"editar('p',"+c.id+")\">✏️</button><button class='b sm rd' onclick=\"elim('p',"+c.id+")\">✕</button></div></div>"}).join(""):vac("Aún no tienes pagos. Agrega el primero arriba.");
   st("tLim",dinero(datos.limiteTarjeta));st("tDeu",dinero(datos.deudaTarjeta));st("tDis",dinero(Math.max(0,red(datos.limiteTarjeta-datos.deudaTarjeta))));
   $("lCompras").innerHTML=datos.comprasTarjeta.length?datos.comprasTarjeta.map(c=>{
     const fin=c.estado==="pagado",p=!fin&&c.pagadoMes!==m;
     return "<div class='it'><div><b>"+esc(c.nombre)+"</b><small>"+(fin?"Terminada":"Cuota "+c.cuotaActual+" de "+c.cuotas)+" · "+((c.diaVencimiento||20)>=31?"Fin de mes":"Día "+(c.diaVencimiento||20))+" · Total "+dinero(c.montoTotal)+"</small></div><div class='r'><b>"+dinero(c.valorCuota)+"</b>"+
     (fin?"<span class='bd ok'>✅</span>":p?"<button class='b sm gn' onclick=\"pagar('c',"+c.id+")\">Pagar cuota</button>":"<span class='bd ok'>✅ Pagada</span>")+
-    "<button class='b sm sc' onclick=\"editar('c',"+c.id+")\">✏️</button><button class='b sm rd' onclick=\"elim('c',"+c.id+")\">✕</button></div></div>"}).join(""):vac("No tienes compras en cuotas.");
+    (!p?"<button class='b sm sc' onclick=\"deshacer('c',"+c.id+")\">↩</button>":"")+"<button class='b sm sc' onclick=\"editar('c',"+c.id+")\">✏️</button><button class='b sm rd' onclick=\"elim('c',"+c.id+")\">✕</button></div></div>"}).join(""):vac("No tienes compras en cuotas.");
   const cl=calc(),ex=suma(datos.laboral.extras),de=suma(datos.laboral.descuentos);
   $("lVd").innerHTML=cl.vd2?dinero(cl.vd)+"<br><small style='font-size:12px'>desde el día "+(cl.dd+1)+": "+dinero(cl.vd2)+"</small>":dinero(cl.vd);st("lTc",dinero(cl.total));$("lCal").innerHTML=calHTML();
   const B=datos.laboral.extras.map((x,i)=>({x,i,t:"e"})).concat(datos.laboral.descuentos.map((x,i)=>({x,i,t:"d"})));
   $("lBon").innerHTML=B.length?B.map(b=>"<div class='it'><b>"+(b.t==="e"?"🎁 ":"➖ ")+esc(b.x.concepto)+"</b><div class='r'><b class='"+(b.t==="e"?"green'>+":"red'>−")+" "+dinero(b.x.monto)+"</b><button class='b sm rd' onclick=\"elimBono('"+b.t+"',"+b.i+")\">✕</button></div></div>").join(""):"";
   st("rEx",dinero(ex));st("rDe",dinero(de));st("rTo",dinero(datos.laboral.sueldo?red(cl.total+ex-de):0));
-  $("lHis").innerHTML=datos.historial.length?datos.historial.slice().reverse().map(h=>"<div class='it'><div><b>📅 "+esc(mesTxt(h.mes))+"</b><small>"+esc(h.fechaCierre||"")+"</small></div><b class='blue'>"+dinero(h.total)+"</b></div>").join(""):vac("Aún no has guardado ningún mes.");
+  $("lHis").innerHTML=datos.historial.length?datos.historial.map((h,i)=>[h,i]).reverse().map(([h,i])=>"<div class='it'><div><b>📅 "+esc(mesTxt(h.mes))+"</b><small>Sueldo del mes "+dinero(h.total)+"</small></div><div class='r'><b class='blue'>"+(h.cierre!=null?"Cerraste con "+dinero(h.cierre):"Sin dinero de cierre")+"</b><button class='b sm sc' onclick='editarCierre("+i+")'>✏️</button></div></div>").join(""):vac("Aún no has guardado ningún mes.");
 }
 function tab(n){
   document.querySelectorAll(".tab").forEach(e=>e.classList.toggle("on",e.id==="t-"+n));
